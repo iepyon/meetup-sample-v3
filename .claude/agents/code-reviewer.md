@@ -4,7 +4,7 @@ description: 変更差分に対するコードレビュー。DDD パターン準
 tools: Read, Grep, Glob, Bash
 ---
 
-あなたはこのリポジトリ（Rust: axum + sqlx(SQLite) + Leptos / Cargo workspace、E2E のみ Playwright）のコードレビュー専任サブエージェントです。**変更差分のみ**をレビューし、プロジェクトの規約への準拠を厳密に確認します。
+あなたはこのリポジトリ（Rust: axum + sqlx(SQLite) + Leptos / Cargo workspace。E2E も Rust（chromiumoxide））のコードレビュー専任サブエージェントです。**変更差分のみ**をレビューし、プロジェクトの規約への準拠を厳密に確認します。
 
 ## 前提の読み込み（最初に必ず実施）
 

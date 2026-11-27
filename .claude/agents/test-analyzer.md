@@ -18,7 +18,7 @@ tools: Read, Grep, Glob, Bash
 
 ### カバレッジ
 - backend: カバレッジ 80% 以上を満たすか（`cargo llvm-cov` が導入されていれば `d bash -c "cargo llvm-cov -p meetup-backend"` で確認可）。HTTP 統合テスト（`backend/tests/api.rs`）がエンドポイントごとの正常系・異常系を網羅しているか
-- frontend: 純粋関数（`utils.rs`）は単体テストで、UI は Playwright E2E でカバーする前提（ページ/コンポーネントの単体テストは書かない）
+- frontend: 純粋関数（`utils.rs`）は単体テストで、UI は Rust の E2E（`e2e/`）でカバーする前提（ページ/コンポーネントの単体テストは書かない）
 - カバレッジ閾値を満たすためだけの「意味のないテスト」になっていないか
 
 ### 命名・構造
@@ -28,7 +28,7 @@ tools: Read, Grep, Glob, Bash
 ### テスト分離
 - backend 統合テスト: テストごとに `connect("sqlite::memory:")` で分離された SQLite を作っているか。テスト間で状態が漏れていないか
 - frontend: `apiClient` / `token` を `vi.mock` で適切にモックしているか
-- テストの配置が規約通りか（`__tests__/*.test.ts(x)`、E2E は `*.e2e.test.ts` / Playwright は `e2e/tests/*.spec.ts`）
+- テストの配置が規約通りか（backend の単体はモジュール内の `#[cfg(test)] mod tests`、HTTP 統合は `backend/tests/*.rs`、frontend の純粋関数は `frontend/src/utils.rs`、E2E は `e2e/tests/*.rs` で `#[ignore]` 付き・関数名は日本語）
 
 ### モックの適切性
 - モックが過剰（実装をそのまま写経）でないか、過少（外部副作用を実行してしまう）でないか

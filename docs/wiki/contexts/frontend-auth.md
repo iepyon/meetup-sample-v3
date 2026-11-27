@@ -31,4 +31,4 @@ verified: 5891e84
 ## 関連
 
 - backend 側: [auth (backend)](backend-auth.md)
-- テスト: `frontend/src/` に UI の単体テストは無い（純粋関数のみ `utils.rs` に `#[test]`）。画面は Playwright E2E でカバーする（`docs/conventions/testing.md`）
+- テスト: `frontend/src/` に UI の単体テストは無い（純粋関数のみ `utils.rs` に `#[test]`）。画面は Rust 製の E2E（`e2e/`。chromiumoxide でヘッドレス Chromium を操作）でカバーする（`docs/conventions/testing.md`）

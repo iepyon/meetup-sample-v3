@@ -561,7 +561,7 @@ git log --stat                       # 何が消えているかを確認
 消えているもの（ハーネス）:
 - CLAUDE.md / AGENTS.md          （エージェントへの指示ファイル全部）
 - docs/conventions/              （coding.md / testing.md）
-- .claude/hooks/                 （secret / dep ガード / 自動整形）
+- .claude/hooks/                 （secret ガード）
 - lefthook.yml                   （pre-commit ゲート）
 - backend/src/**/__tests__/      （backend のテストコード全部）
 - frontend/src/**/__tests__/     （frontend のテストコード全部）
@@ -637,8 +637,8 @@ git checkout -b harness/repair
 ⑤ で選んだターゲットに応じてAIに相談する。例（フロント中心）：
 
 ```text
-（Claude Code に相談。hook を書かせるときは、main の `.claude/hooks/dep-install-guard.sh` /
-`secret-leak-detector.sh` を参考実装として読ませるとよい）
+（Claude Code に相談。hook を書かせるときは、main の `.claude/hooks/secret-leak-detector.sh` を
+参考実装として読ませるとよい）
 「component テストの命名が英語だった。日本語テストが定着するよう docs/conventions/testing.md の
  Frontend 節に何をどう書けばよいか、案を出して」
 

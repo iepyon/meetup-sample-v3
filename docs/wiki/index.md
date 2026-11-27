@@ -1,6 +1,6 @@
 # Wiki Index
 
-最終更新: 2026-11-27 (5891e84 + Rust 移行の未コミット作業ツリー)
+最終更新: 2026-11-27 (52810be + E2E の Rust 移行・npm 撤去の未コミット作業ツリー)
 
 運用ルールは [SCHEMA.md](SCHEMA.md)、操作は `/wiki` スキル（compile / ingest / query / lint / sync）。
 
@@ -63,7 +63,7 @@ bounded context 別サブフォルダで整理（横断ページは domain/ 直�
 
 ## Infra
 
-- [Docker 開発環境](infra/docker-dev.md) — 単一常駐コンテナに exec する docker-dev.sh の仕組み（cargo / trunk / E2E 用 npm）と WITH_CLAUDE
+- [Docker 開発環境](infra/docker-dev.md) — 単一常駐コンテナに exec する docker-dev.sh の仕組み（cargo / trunk / E2E 用 chromium）と WITH_CLAUDE
 - [worktree 運用](infra/worktree.md) — worktree ごとに独立 Compose プロジェクト・独立ポートで main と同時起動する仕組み
 - [CI・品質ゲート](infra/ci-quality-gates.md) — 3 層の品質ゲート（lefthook pre-commit / GitHub Actions / d review の中身）。cargo fmt / clippy / test が中核
-- [AI hooks](infra/ai-hooks.md) — Claude Code 用 3 本の hook の発火タイミングと、lefthook / CI との役割分担
+- [AI hooks](infra/ai-hooks.md) — Claude Code 用 hook は secret-leak-detector の 1 本のみ。発火タイミングと、lefthook / CI との役割分担
