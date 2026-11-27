@@ -55,8 +55,8 @@ cargo test -p meetup-e2e -- --ignored
 
 ## テスト作成時の注意
 
-- テスト名（関数名）は日本語。各テストは `E2e::start()` から始め、最後に `page.close().await` を呼ぶ
-- 属性は `#[tokio::test(flavor = "multi_thread")]` と `#[ignore = "E2E: ..."]` をそろえる
+- テストは `describe!` / `test!`（`meetup-test-macros`）で書き、名前は日本語の文字列にする（ファイル = 機能、入れ子の `describe!` = 観点。旧 Playwright の describe 構造と同じ）。各テストは `E2e::start()` から始め、最後に `page.close().await` を呼ぶ
+- `test!` の直前に `#[tokio::test(flavor = "multi_thread")]` と `#[ignore = "E2E: ..."]` をそろえて書く
 - 否定のアサーション（`expect_hidden` / `expect_count(0)`）は即座に通り得る。先に肯定の状態（エラー表示・ボタンの切り替わりなど）を待ってから書く
 - メールアドレスは英数字の接頭辞 + `unique_suffix()` で作る（日本語を入れると入力検証で弾かれる）
 - 複数ユーザーが関わるテストは、登録 → 操作 → ログアウト → 別ユーザー登録 → 操作の流れ。UI から辿れない前提（非公開コミュニティへの申請など）は `fetch_json` で API を直接呼ぶ

@@ -34,23 +34,27 @@ impl<E> EventBus<E> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use meetup_test_macros::describe;
     use std::sync::{Arc, Mutex};
 
-    #[test]
-    fn 購読者がいなくても発行できる() {
-        EventBus::<u32>::default().publish(&1);
-    }
+    describe!("イベントバス", {
+        test!("購読者がいなくても発行できる", {
+            EventBus::<u32>::default().publish(&1);
+        });
 
-    #[test]
-    fn 複数の購読者が登録順にイベントを受け取る() {
-        let bus = EventBus::<u32>::default();
-        let log = Arc::new(Mutex::new(Vec::new()));
-        for name in ["a", "b"] {
-            let log = Arc::clone(&log);
-            bus.subscribe(move |e| log.lock().unwrap().push(format!("{name}{e}")));
-        }
-        bus.publish(&1);
-        bus.publish(&2);
-        assert_eq!(*log.lock().unwrap(), vec!["a1", "b1", "a2", "b2"]);
-    }
+        test!(
+            "複数の購読者が登録順にイベントを受け取る",
+            {
+                let bus = EventBus::<u32>::default();
+                let log = Arc::new(Mutex::new(Vec::new()));
+                for name in ["a", "b"] {
+                    let log = Arc::clone(&log);
+                    bus.subscribe(move |e| log.lock().unwrap().push(format!("{name}{e}")));
+                }
+                bus.publish(&1);
+                bus.publish(&2);
+                assert_eq!(*log.lock().unwrap(), vec!["a1", "b1", "a2", "b2"]);
+            }
+        );
+    });
 }

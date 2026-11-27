@@ -41,7 +41,7 @@ worktree で main と同時に起動する場合は `./scripts/docker-worktree.s
 
 コードベース・ドメイン知識の詳細地図は `docs/wiki/index.md`（LLM 保守の Wiki。運用ルールは `docs/wiki/SCHEMA.md`、操作は `/wiki` スキル）。
 
-Cargo workspace: `backend/`（axum API）, `frontend/`（Leptos SPA）, `e2e/`（ブラウザ E2E）。npm は使わない（Node は Docker イメージ内の Claude Code CLI 用のみ）。
+Cargo workspace: `backend/`（axum API）, `frontend/`（Leptos SPA）, `e2e/`（ブラウザ E2E）, `test-macros/`（テスト名を文字列で書く `describe!` / `test!`。全テストで使う）。npm は使わない（Node は Docker イメージ内の Claude Code CLI 用のみ）。
 
 ### Backend
 

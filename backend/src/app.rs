@@ -198,14 +198,19 @@ fn api_routes() -> Router<AppState> {
 #[cfg(test)]
 mod tests {
     use super::is_hashed_asset;
+    use meetup_test_macros::describe;
 
-    #[test]
-    fn trunkのハッシュ付きアセットだけを長期キャッシュの対象にする() {
-        assert!(is_hashed_asset("/meetup-frontend-5d3e04fd1c160851_bg.wasm"));
-        assert!(is_hashed_asset("/meetup-frontend-2bd9def59dec682a.js"));
-        assert!(is_hashed_asset("/input-90c05ea414850b4a.css"));
-        assert!(!is_hashed_asset("/index.html"));
-        assert!(!is_hashed_asset("/communities"));
-        assert!(!is_hashed_asset("/app.js"));
-    }
+    describe!("静的アセットの配信", {
+        test!(
+            "trunk のハッシュ付きアセットだけを長期キャッシュの対象にする",
+            {
+                assert!(is_hashed_asset("/meetup-frontend-5d3e04fd1c160851_bg.wasm"));
+                assert!(is_hashed_asset("/meetup-frontend-2bd9def59dec682a.js"));
+                assert!(is_hashed_asset("/input-90c05ea414850b4a.css"));
+                assert!(!is_hashed_asset("/index.html"));
+                assert!(!is_hashed_asset("/communities"));
+                assert!(!is_hashed_asset("/app.js"));
+            }
+        );
+    });
 }

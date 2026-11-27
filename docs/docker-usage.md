@@ -240,7 +240,7 @@ d bash -c "rm -f dev.db"                                    # 開発 DB を作�
 
 ```bash
 d bash -c "cargo test -p meetup-backend --test api 同名コミュニティ"     # backend/tests/api.rs
-d bash -c "cargo test -p meetup-backend 公開getパス"                    # src 内の単体テスト
+d bash -c "cargo test -p meetup-backend 公開_GET_パス"                  # src 内の単体テスト（名前は describe!/test! の文字列を識別子にしたもの）
 d bash -c "cargo test -p meetup-frontend カテゴリ"                      # frontend/src/utils.rs
 ```
 

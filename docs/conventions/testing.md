@@ -11,10 +11,29 @@
 - ページ・コンポーネントの単体テストは書かない — 純粋関数テスト + E2E でカバーする
 
 ## E2E
-- Rust（chromiumoxide）: `e2e/tests/*.rs`。全テストに `#[tokio::test(flavor = "multi_thread")]` と `#[ignore = "E2E: ..."]` を付け、`d e2e` で実行する
+- Rust（chromiumoxide）: `e2e/tests/*.rs`。全テストの `test!` に `#[tokio::test(flavor = "multi_thread")]` と `#[ignore = "E2E: ..."]` を付け、`d e2e` で実行する
 - `E2e::start()` がテストごとに backend を同一プロセスで起動し（インメモリ SQLite・空きポート・ビルド済み SPA）、専用プロファイルの Chromium を開く。テスト間でデータもブラウザ状態も共有しない
 - ロケーターは `get_by_role` / `get_by_label` / `get_by_text` を優先する。否定のアサーション（`expect_hidden` など）の前に、肯定の状態を待つ
 
 ## Test naming
-- テスト名（Rust の関数名。E2E も含む）は日本語で記述する
+- テストは `meetup-test-macros` の `describe!` / `test!` で書き、テスト名を**日本語の文字列**で付ける（Jest / Playwright の describe / test 相当。単体・統合・E2E のすべてで使う）
+
+  ```rust
+  use meetup_test_macros::describe;
+
+  describe!("認証", {
+      describe!("新規登録", {
+          test!("同じメールアドレスの登録は 409 になる", async {
+              // ...
+          });
+      });
+  });
+  ```
+
+- `describe!` は `mod` に、`test!` はテスト関数に展開される。名前の文字列は識別子に変換される（空白・記号の並びは `_` 1 つにし、先頭・末尾のものは削る。数字始まりは `_` を前置）。`cargo test` の表示は `認証::新規登録::同じメールアドレスの登録は_409_になる` で、絞り込みもこの形で書く（例: `cargo test 公開_GET_パス`）
+- 同じ `describe!` の中で変換後の名前が重なるとコンパイルエラーになる。また生成された `mod` / `fn` は兄弟の名前を覆い隠すので、ヘルパーやクレートと同じ名前（`app` など）は付けない
+- 本体が `async { … }` なら `#[tokio::test]`、`{ … }` なら `#[test]` が付く。`#[tokio::test(flavor = "multi_thread")]` などのテスト属性や `#[ignore = "…"]` は `test!` の直前に書く（テスト属性を書けば既定の属性は付かない）
+- マクロ自身のテストも `test-macros/tests/naming.rs` で `describe!` / `test!` を使う（変換結果は生成された `mod` を名前で呼べるかで確かめる）
+- ヘルパー関数は `describe!` の外（または中）に普通に書ける。`describe!` は `use super::*;` を持つ
+- 英字の略語・HTTP ステータス・識別子は原文どおりに書く（`409`、`X-Forwarded-For`、`PENDING` など）。名前が長いと rustfmt が `test!(` を縦に展開するが、それが rustfmt の正しい整形
 - **Acceptance criteria mapping**: Each issue acceptance criterion maps 1:1 to a test name

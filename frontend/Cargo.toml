@@ -13,3 +13,6 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 wasm-bindgen = "=0.2.130"  # Dockerfile の wasm-bindgen-cli と揃えるため完全一致で固定
 web-sys = { version = "0.3.107", features = ["Window", "Storage", "HtmlInputElement", "HtmlSelectElement", "HtmlTextAreaElement", "SubmitEvent", "Event"] }
+
+[dev-dependencies]
+meetup-test-macros = { path = "../test-macros" }

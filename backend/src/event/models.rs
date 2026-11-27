@@ -84,6 +84,7 @@ pub fn create_event(input: CreateEventInput) -> Result<Event, CreateEventError> 
 mod tests {
     use super::*;
     use chrono::Duration;
+    use meetup_test_macros::describe;
 
     fn input(starts_in: i64, ends_in: i64) -> CreateEventInput {
         let now = Utc::now();
@@ -103,25 +104,24 @@ mod tests {
         }
     }
 
-    #[test]
-    fn 正しい日時ならdraftで作成される() {
-        let event = create_event(input(1, 2)).unwrap();
-        assert_eq!(event.status, EventStatus::Draft);
-    }
+    describe!("イベントのドメインモデル", {
+        test!("正しい日時なら DRAFT で作成される", {
+            let event = create_event(input(1, 2)).unwrap();
+            assert_eq!(event.status, EventStatus::Draft);
+        });
 
-    #[test]
-    fn 過去の開始日時は拒否される() {
-        assert!(matches!(
-            create_event(input(-1, 2)),
-            Err(CreateEventError::EventDateInPast)
-        ));
-    }
+        test!("過去の開始日時は拒否される", {
+            assert!(matches!(
+                create_event(input(-1, 2)),
+                Err(CreateEventError::EventDateInPast)
+            ));
+        });
 
-    #[test]
-    fn 終了が開始以前なら拒否される() {
-        assert!(matches!(
-            create_event(input(2, 2)),
-            Err(CreateEventError::EventEndBeforeStart)
-        ));
-    }
+        test!("終了が開始以前なら拒否される", {
+            assert!(matches!(
+                create_event(input(2, 2)),
+                Err(CreateEventError::EventEndBeforeStart)
+            ));
+        });
+    });
 }
