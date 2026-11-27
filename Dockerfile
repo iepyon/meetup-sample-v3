@@ -55,6 +55,14 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-to
     && cargo install trunk --locked --version 0.22.2 \
     && chown -R devuser:$USER_GID /opt/rustup /opt/cargo
 
+# wasm-bindgen-cli をソースからビルドして入れる。trunk が自動ダウンロードする aarch64 版の
+# 配布バイナリは GLIBC 2.38 を要求し、bookworm（2.36）では動かないため（PATH に同じ版があれば trunk はそれを使う）。
+# バージョンは Cargo.lock の wasm-bindgen と必ず揃えること（ずれると trunk が再びダウンロードを試みて失敗する）
+# ビルド用のレジストリは一時 CARGO_HOME に置いて捨て、/opt/cargo 全体を chown し直さない（レイヤ肥大の回避）
+RUN CARGO_HOME=/tmp/cargo-build cargo install wasm-bindgen-cli --locked --version 0.2.130 --root /opt/cargo \
+    && rm -rf /tmp/cargo-build \
+    && chown devuser:$USER_GID /opt/cargo/bin/wasm-bindgen* /opt/cargo/.crates.toml /opt/cargo/.crates2.json
+
 # Allow git to work with bind-mounted repos (different owner)
 RUN git config --system --add safe.directory '*'
 
