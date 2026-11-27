@@ -19,4 +19,21 @@ serde_json = "1"
 chrono = "0.4"
 
 [dev-dependencies]
-meetup-test-macros = { path = "../test-macros" }
+meetup-test-runner = { path = "../test-runner" }
+
+# E2E は meetup-test-runner（libtest-mimic）で実行する（テスト名を文字列のまま表示するため）
+[[test]]
+name = "auth"
+harness = false
+
+[[test]]
+name = "community"
+harness = false
+
+[[test]]
+name = "event"
+harness = false
+
+[[test]]
+name = "member"
+harness = false

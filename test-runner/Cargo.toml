@@ -1,0 +1,13 @@
+[package]
+name = "meetup-test-runner"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Jest-style describe / test runner (libtest-mimic) for integration and E2E tests: test names stay plain strings"
+
+[dependencies]
+libtest-mimic = "0.8"
+tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
+
+[dev-dependencies]
+meetup-test-macros = { path = "../test-macros" }
