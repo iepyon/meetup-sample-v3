@@ -15,8 +15,6 @@ services:
       # Named volumes (Linux binaries / build artifacts, not macOS)
       # WORK_DIR is the project or worktree dir; Compose prefixes volume names
       # with the project name (-p), so worktree projects get isolated volumes.
-      - node_modules_root:${WORK_DIR}/node_modules
-      - node_modules_e2e:${WORK_DIR}/e2e/node_modules
       # Rust のビルド成果物は bind mount だと遅いため named volume に置く
       - cargo_target:${WORK_DIR}/target
       - cargo_registry:/opt/cargo/registry
@@ -32,13 +30,13 @@ services:
       - DATABASE_URL=file:./dev.db
       # 既定値は置かない（既知の値で JWT を偽造されないよう）。リポジトリ直下の .env に 32 バイト以上の値を書く
       - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET を .env に設定してください（32 バイト以上。例 openssl rand -hex 32）}"
-      - PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    # PID 1 に init（tini）を置き、孤児プロセスを回収させる。E2E の Chromium が終了時に残す
+    # 子プロセス（crashpad など）は PID 1 に引き取られるため、sleep が PID 1 だとゾンビが溜まる
+    init: true
     tty: true
     stdin_open: true
 
 volumes:
-  node_modules_root:
-  node_modules_e2e:
   cargo_target:
   cargo_registry:

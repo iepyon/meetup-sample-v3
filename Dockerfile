@@ -1,7 +1,7 @@
 FROM node:26-bookworm
 
-# Node は E2E (Playwright) と Claude Code CLI 用。アプリ本体は Rust (axum + Leptos)。
-# System dependencies: git, SQLite tools, jq, build tools, Playwright browser deps
+# Node は Claude Code CLI 用のみ。アプリ本体・E2E は Rust (axum + Leptos / chromiumoxide)。
+# System dependencies: git, SQLite tools, jq, build tools, E2E 用の Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     sqlite3 \
@@ -10,24 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     pkg-config \
     libssl-dev \
-    # Playwright Chromium dependencies
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libatspi2.0-0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libasound2 \
+    # E2E（e2e/ の chromiumoxide）が CDP で操作するヘッドレスブラウザ。Debian 版は arm64 / amd64 両対応
+    chromium \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user matching macOS UID for bind mount permissions
@@ -39,11 +23,6 @@ RUN groupadd --gid $USER_GID devuser 2>/dev/null || true \
 
 # Install gosu for entrypoint user switching
 RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
-
-# Shared Playwright browser cache (writable by devuser for version flexibility)
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
-RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH \
-    && chown devuser:$USER_GID $PLAYWRIGHT_BROWSERS_PATH
 
 # Rust toolchain（rustup は root で共有パスに導入し、devuser から使えるようにする）
 # wasm32 ターゲットは Leptos (CSR) のビルドに、clippy / rustfmt は品質ゲートに必要

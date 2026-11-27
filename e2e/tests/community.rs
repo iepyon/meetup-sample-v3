@@ -1,0 +1,116 @@
+//! コミュニティ: 作成 / 詳細 / カテゴリフィルター
+
+use meetup_e2e::flows::{CommunityForm, create_community, register};
+use meetup_e2e::{E2e, Page, unique_suffix};
+
+async fn register_user(page: &Page, suffix: &str) {
+    register(
+        page,
+        &format!("コミュニティユーザー{suffix}"),
+        &format!("community{suffix}@example.com"),
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "E2E: Chromium と trunk build 済みの SPA が必要（d e2e で実行）"]
+async fn コミュニティを作成すると一覧に表示される() {
+    let page = E2e::start().await;
+    let suffix = unique_suffix();
+    register_user(&page, &suffix).await;
+
+    let name = format!("テストコミュニティ{suffix}");
+    create_community(
+        &page,
+        CommunityForm {
+            name: &name,
+            description: &format!("{name}の説明文です"),
+            category: Some("TECH"),
+            visibility: Some("PUBLIC"),
+        },
+    )
+    .await;
+
+    page.get_by_role("link")
+        .name("コミュニティ一覧")
+        .click()
+        .await;
+    page.get_by_role("heading")
+        .name(&name)
+        .level(2)
+        .exact()
+        .expect_visible()
+        .await;
+    page.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "E2E: Chromium と trunk build 済みの SPA が必要（d e2e で実行）"]
+async fn コミュニティ詳細ページを閲覧できる() {
+    let page = E2e::start().await;
+    let suffix = unique_suffix();
+    register_user(&page, &suffix).await;
+
+    let name = format!("詳細テスト{suffix}");
+    create_community(
+        &page,
+        CommunityForm {
+            name: &name,
+            description: "詳細ページのテスト用コミュニティ",
+            category: None,
+            visibility: None,
+        },
+    )
+    .await;
+
+    page.get_by_text("詳細ページのテスト用コミュニティ")
+        .expect_visible()
+        .await;
+    page.get_by_text("メンバー一覧").expect_visible().await;
+    page.close().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "E2E: Chromium と trunk build 済みの SPA が必要（d e2e で実行）"]
+async fn カテゴリフィルターで絞り込みができる() {
+    let page = E2e::start().await;
+    let suffix = unique_suffix();
+    register_user(&page, &suffix).await;
+
+    let tech = format!("テクノロジーコミュニティ{suffix}");
+    let biz = format!("ビジネスコミュニティ{suffix}");
+    for (name, description, category) in [
+        (&tech, "テクノロジーの説明", "TECH"),
+        (&biz, "ビジネスの説明", "BUSINESS"),
+    ] {
+        let form = CommunityForm {
+            name,
+            description,
+            category: Some(category),
+            visibility: None,
+        };
+        create_community(&page, form).await;
+    }
+
+    page.get_by_role("link")
+        .name("コミュニティ一覧")
+        .click()
+        .await;
+    page.get_by_text(&tech).expect_visible().await;
+    page.get_by_text(&biz).expect_visible().await;
+
+    let filter = page.get_by_label("カテゴリフィルター");
+    filter.select_option("TECH").await;
+    page.get_by_text(&tech).expect_visible().await;
+    page.get_by_text(&biz).expect_hidden().await;
+
+    filter.select_option("BUSINESS").await;
+    page.get_by_text(&biz).expect_visible().await;
+    page.get_by_text(&tech).expect_hidden().await;
+
+    // フィルター解除
+    filter.select_option("").await;
+    page.get_by_text(&tech).expect_visible().await;
+    page.get_by_text(&biz).expect_visible().await;
+    page.close().await;
+}
