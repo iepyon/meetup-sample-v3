@@ -2,6 +2,14 @@
 
 追記専用。形式は [SCHEMA.md](SCHEMA.md) 参照。最新エントリの HEAD SHA が次回 `/wiki sync` の差分起点。
 
+## [2026-11-27] ingest | テストの配置を整理（統合テストを tests/api/ の観点別モジュールに、長い単体テストを <モジュール>/tests.rs に） (HEAD: 585ee34)
+
+- 出典: ブランチ test/split-test-files の `backend/tests/api/`（main.rs・common.rs・観点別モジュール）と、`backend/src/{shared/auth,shared/middleware,community/models}/tests.rs`・`frontend/src/{types,utils}/tests.rs`
+- 更新: contexts/backend-infrastructure.md（統合テストの構成と sources を `tests/api/` に、単体テストの置き場所を `<モジュール>/tests.rs` に）, contexts/frontend-auth.md・contexts/frontend-community.md（frontend の単体テストの置き場所）
+- `verified` は据え置き（変更箇所だけを突合したため。既存値 5891e84 はリポジトリに存在しないので、次回 `/wiki sync` でページ全体を突合して更新する）
+- wiki 外: `AGENTS.md`・`docs/conventions/testing.md`・`docs/docker-usage.md`・`docs/remaining-items.md`・`.claude/agents/test-analyzer.md` も同じ事実に合わせて更新
+- 矛盾検出: なし
+
 ## [2026-11-27] ingest | E2E を Playwright から Rust（chromiumoxide）へ移行し npm と hook 2 本を撤去 (HEAD: 52810be)
 
 - 出典: `docs/decision-logs/arch-20261127-e2e-in-rust.md` と、作業ツリー上の `e2e/`（`src/server.rs`・`src/lib.rs`・`CLAUDE.md`）・`scripts/docker-dev.sh`・`scripts/docker-worktree.sh`・`docker-compose.yml`・`Dockerfile`・`.github/workflows/ci.yml`・`.claude/settings.json`。HEAD の 52810be には未コミットのため、突合対象は作業ツリー

@@ -241,7 +241,7 @@ d bash -c "rm -f dev.db"                                    # 開発 DB を作�
 ```bash
 d bash -c "cargo test -p meetup-backend --test api community::"       # backend/tests/api/community.rs
 d bash -c "cargo test -p meetup-backend 公開_GET_パス"                  # src 内の単体テスト（名前は describe!/test! の文字列を識別子にしたもの）
-d bash -c "cargo test -p meetup-frontend カテゴリ"                      # frontend/src/utils.rs
+d bash -c "cargo test -p meetup-frontend カテゴリ"                      # frontend/src/utils/tests.rs
 ```
 
 クリーンアップは 3 段階あります。

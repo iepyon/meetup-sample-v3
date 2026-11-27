@@ -30,7 +30,7 @@
 ### テスト
 - [ ] E2E に未ログイン時のリダイレクトを追加（PRIVATE コミュニティの承認／拒否は 2026-11-27 に追加済み）
 - [ ] Leptos ページ/コンポーネントの単体テスト（現状は E2E 依存）
-- [ ] 1 テストに複数検証が入っているもの（`api.rs` の参加/脱退、承認/拒否など）を「1 基準 1 テスト」に分割
+- [ ] 1 テストに複数検証が入っているもの（`backend/tests/api/member.rs` の参加/脱退、`member_review.rs` の承認/拒否など）を「1 基準 1 テスト」に分割
 - [ ] レート制限テストが実時間・固定回数（61 回など）に依存。時刻注入でウィンドウ復帰も検証
 - [x] `main.rs` の `JWT_SECRET` 判定を純粋関数に切り出してテスト — `shared::auth::validate_jwt_secret` に切り出し単体テストを追加
 
@@ -67,7 +67,7 @@
 - [x] `reject` はサーバ側で対象の status を見ないため、API 直叩きで ACTIVE メンバー（ADMIN 含む）も削除できる。UI は PENDING のみに絞った。サーバ側も PENDING に限定するか決める（§2 の `reject` 項目と同じ論点） — 2026-11-27 に PENDING のみに限定
 - [ ] ADMIN にもメンバー一覧で PENDING が返るが、UI の承認／拒否ボタンは OWNER のみ表示（§5 の要確認と同じ論点）
 - [ ] frontend は自分のメンバー情報（`me`）をページングされたメンバー一覧（既定 20 件）から探している。PENDING を先頭に並べたため、承認待ちが 20 件以上たまるとオーナー自身が 1 ページ目から外れ、承認ボタンが消えて「参加する」が出る（21 人目以降の ACTIVE メンバーには従来から同じ症状）。自分のメンバー情報を専用に取得する API / 処理を設ける
-- [x] `backend/tests/api.rs` が 1300 行超でファイル上限（800 行）を超過。コンテキストごとに分割する — 2026-11-27 に `api.rs` / `system.rs` / `security.rs` + `common/` に分割
+- [x] `backend/tests/api.rs` が 1300 行超でファイル上限（800 行）を超過。コンテキストごとに分割する — 2026-11-27 に `api.rs` / `system.rs` / `security.rs` + `common/` に分割。その後、同日に `backend/tests/api/` の 1 バイナリ・観点別モジュールに再編
 
 ### 開発環境
 - [x] trunk はビルドに失敗しても既存の `frontend/dist` を配信し続けるため、E2E が古い UI に対して黙って通る。webServer を `trunk build && trunk serve` にする等で失敗を顕在化させるか決める — 2026-11-27 の E2E の Rust 移行で解消。`d e2e` は `trunk build --dist ../target/e2e-dist` を先に実行し、失敗すればそこで止まる（`set -e`）。ただし `cargo test -p meetup-e2e` を直接実行した場合は既存の `target/e2e-dist` をそのまま使う

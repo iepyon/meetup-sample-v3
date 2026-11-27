@@ -3,7 +3,7 @@ use crate::common::*;
 use meetup_test_macros::describe;
 
 describe!("HTTP の共通の挙動", {
-    describe!("ルーティング", {
+    describe!("ルーティングと存在しないリソース", {
         test!(
             "未定義パスは 404、メソッド不一致は 405 の JSON",
             async {
