@@ -1,0 +1,16 @@
+[build]
+dist = "dist"
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 5173
+
+# 開発時は API を backend (port 3000) へプロキシする
+[[proxy]]
+backend = "http://localhost:3000/auth"
+
+[[proxy]]
+backend = "http://localhost:3000/communities"
+
+[[proxy]]
+backend = "http://localhost:3000/health"

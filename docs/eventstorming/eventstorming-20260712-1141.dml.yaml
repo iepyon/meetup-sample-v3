@@ -1,0 +1,1189 @@
+# ⚠ このファイルは pocket-modeling リポジトリの同名ファイルの 2026-07-12 時点スナップショット。
+# 原本は dmlctl（EventStorming facilitator スキル）が管理する。本リポジトリでは
+# docs/issues-20260712.md および docs/wiki/ の参照用（読み取り専用）として保持している。
+# 更新するときは原本（pocket-modeling 側）を dmlctl で編集し、このスナップショットを取り直す。
+
+# =============================================================================
+# DML テンプレート — 新規 EventStorming セッション
+# =============================================================================
+# このファイルを `docs/eventstorming/eventstorming-YYYYMMDD-HHMM.dml.yaml` に
+# コピーし、必要なセクションのコメントを外しながら埋めていく。
+#
+# .md は廃止。HTML（dist/eventstorming/*.html）は本 YAML のみから自動生成される。
+# AI は `scripts/dmlctl.py view/set/add` を介して必要な観点だけを読み書きする。
+#
+# 構文検証: `python3 scripts/validate_dml.py <this>.dml.yaml`
+# 詳細仕様: `references/dml-spec.md` / `references/dml.schema.yaml`
+#
+# 全フィールドは optional。空 YAML（{} のみ）でも valid（進行中セッション許容）。
+# =============================================================================
+
+# ---------- (A) セッションメタ（旧 .md ヘッダー） ----------
+# session:
+#   id: eventstorming-YYYYMMDD-HHMM
+#   domain: <ドメイン名>                    # 例: trade-in-exchange
+#   phase: "1"                               # v7・直近完了フェーズ（構造化）。
+#                                            # enum: "1" "2" "3" "4" "4.5" "4.6" "5" "6" "7"
+#                                            # HTML タブハイライトはこれを最優先で参照する。
+#                                            # 未設定の場合は status 文字列を regex 解釈するレガシー挙動。
+#   status: Phase 1 (スコープ確認中)          # 補足説明（自由文字列）。タブには使われない
+#   goal: <このセッションのゴール>
+#   started_at: YYYY-MM-DDTHH:MM:00+09:00
+#   html_link: ../../dist/eventstorming/eventstorming-YYYYMMDD-HHMM.html
+
+# ---------- (B) Narratives（ハッピーパス + 代替シナリオの単一情報源） ----------
+# narratives は HTML §1「ストーリー」と §2 フロー図駆動の単一情報源（v8）。
+# 旧トップレベル `story:` キーは廃止。ハッピーパスは kind: happy のエントリとしてここに書く。
+# `entry` を指定したエントリだけが §2 フロー図に 1 行描画される。
+# kind は必須・enum: [happy, alt]、kind:happy は 0 or 1 件（narrative_happy_unique で検出）。
+# narratives:
+#   - id: happy                              # フロー識別子（lowercase-with-hyphen）
+#     title: ハッピーパス
+#     kind: happy                            # 必須・happy / alt
+#     entry: <フロー開始 scenario.name>
+#     prose: |
+#       <ハッピーパス散文（400〜600 字）。{{主人公}}は {{課題}} を抱えていた…で始める。
+#        実装詳細（CMD/AGG/POLICY 名）は描かない。>
+#   - id: alt-1
+#     title: <代替シナリオの短い題>
+#     kind: alt
+#     entry: <フロー開始 scenario.name>      # 任意。指定なし → §2 フロー図は省略・散文のみ
+#     prose: |
+#       <代替シナリオの散文（100〜200字）>
+
+# ---------- (D) ドメイン分類（任意） ----------
+# subdomain.type は CORE_SUBDOMAIN / SUPPORTING_SUBDOMAIN / GENERIC_SUBDOMAIN を推奨。
+# 旧表記 CORE_DOMAIN / SUPPORTING_DOMAIN も後方互換で許容。
+# domains:
+#   - name: <domain-slug>
+#     vision: <ドメインビジョン>
+#     subs:
+#       - { name: <subdomain-slug>, type: CORE_SUBDOMAIN, vision: ... }
+
+# ---------- (E) Bounded Context ----------
+# name / lang（語彙の英→日辞書）/ up / dn / description（旧 .md §7 散文）
+# contexts:
+#   - name: <bc-slug>                       # lowercase-with-hyphen
+#     type: FEATURE                         # FEATURE / APPLICATION / SYSTEM / MICROSERVICE
+#     description: |                         # 旧 .md §7：境界の理由 / 含むシナリオ / 目的 / 背景 / 制約
+#       <BC 散文>
+#     lang:
+#       aggs:   { AggName: "集約日本語名" }
+#       actors: { ActorName: "アクター日本語名" }
+#       cmds:   { CommandName: "コマンド日本語名" }
+#       evts:   { EventName: "イベント日本語名" }
+#       pols:   { PolicyName: "ポリシー日本語名" }
+#       qrys:   { QryName: "クエリ日本語名" }
+#       vos:    { ValueObjName: "値オブジェクト日本語名" }
+#     up: []                                # upstream BC
+#     dn: []                                # downstream BC（{ ctx, rel: Customer-Supplier, ... }）
+#     aggs: []                              # 所属 AGG 名の軽量名簿（PascalCase 文字列）
+
+# ---------- (F) Aggregate（トップレベル詳細定義） ----------
+# 新規 aggregates を追加するときは、所属 BC の `contexts[].lang.aggs` にも英→日辞書
+# エントリを同時追加する（`contexts[].aggs` の軽量名簿とは別物。language_coverage で検出可能）。
+# transitions[].from は実在状態のみ（schema が `^[A-Z][A-Z0-9_]*$` を強制）。
+# AGG の生成（creation）は transitions に書かず、states[] 先頭の入口状態として
+# 表現する（scenarios[].agg + lang.cmds で creation CMD は紐づけ済）。
+# 入口で分岐する場合は「入口受付ステート」（例: APPLIED）を導入し
+# `{ from: APPLIED, to: [ACCEPTED, WAITLISTED], via: <CreationCmd> }` のように
+# to をリストにする。詳細は dml-spec.md「transitions[] の初期化規約」を参照。
+# state_reachability チェックは states[0] を入口とみなし、それ以外はいずれかの
+# to で到達可能でなければ違反として報告する。
+#
+# aggregates:
+#   - name: <AggName>
+#     ctx: <bc-slug>
+#     purpose: <30 字以上で「この AGG が単一に責任を持つこと」を一文に>
+#     background: <なぜ今この AGG を切り出すか>
+#     constraints:
+#       - <業務 / 法令 / プラットフォーム制約>
+#     states: [DRAFT, FINAL]                  # DRAFT が入口（transitions に書かない）
+#     transitions:
+#       - { from: DRAFT, to: FINAL, via: <CommandName> }
+#       # 単一状態のみで終わる AGG は `transitions: []`（空配列）を明示
+#     attrs:
+#       - { name: <fieldName>, type: <type>, required: true }
+#     events:
+#       - name: <EventName>
+#         params:
+#           - { name: <fieldName>, type: <type> }
+#         # 終端 EVT（後段で参照されない結果イベント）には terminal: true を付け、
+#         # orphan_event 検出から除外する。
+
+# ---------- (G) Scenario（CMD 実行ユースケース） ----------
+# 新規 scenarios を追加するときは、同 BC の `contexts[].lang.cmds` と `contexts[].lang.evts`
+# にも英→日辞書エントリを同時追加する（dmlctl check --check=language_coverage で検出可能）。
+# scenarios:
+#   - name: <アクター + 行為（日本語）>
+#     ctx: <bc-slug>
+#     actor: <ActorName>
+#     cmd: <CommandName>
+#     evt: <EventName>
+#     agg: <AggName>
+#     next: <次の scenarios[].name>          # フロー連鎖：全フロー共通の次（任意）
+#     # next:                                # 分岐点では dict 形式：narratives[].id ごとの次
+#     #   happy: <次 scenario.name>
+#     #   alt-1: <別 scenario.name>
+#     rules:
+#       - { rule: <英語の不変条件>, why: <なぜそれを守るか> }
+#     errs:
+#       - { cond: <エラー条件>, err: <ErrorName>, when: <発生時の補足> }
+#     # 分岐 brs[] 使用時:
+#     # brMode: exclusive
+#     # brs:
+#     #   - { cond: "...", evt: <HappyEvt> }                            # 通常分岐
+#     #   - { cond: "...", evt: <AltEvt>, terminal: alt-X }             # この分岐が alt-X を終端
+#     #   - { cond: "...", evt: <DivergeEvt>, next: <分岐先 scenario.name> }  # alt 経路の起点
+
+# ---------- (H) Policy（EVENTUAL-TX） ----------
+# 新規 policies を追加するときは、所属 BC の `contexts[].lang.pols` にも英→日辞書
+# エントリを同時追加する（language_coverage で検出可能）。
+# 複数トリガーは trgs（mode: all=AND join / any|or=OR）。遅延許容 SLA は within（例「火金の週2回」）。
+# policies:
+#   - name: <PolicyName>
+#     ctx: <bc-slug>
+#     trg: <EventName>                     # 単一トリガー（複数の場合 trgs を使う）
+#     cmd: <CommandName>                   # 副作用専用 POLICY なら省略可
+#     evt: <EventName>                     # 完了イベント名（任意）
+#
+# bulk: true の例（ファンアウト = 1 イベント受信時に N エンティティへ展開）：
+#   - name: NotifyOnCancellation
+#     ctx: notification
+#     trg: MeetupCancelled
+#     bulk: true                          # bulk: true のとき qry が必須（schema 検証）
+#     qry: ActiveRsvpsForMeetup           # 送信対象リストを返すクエリ名
+#
+# 複数トリガーの join（`trgs`）例：
+#   - name: GoodsReceivedJoin
+#     ctx: warehouse
+#     trgs:
+#       evts: [ParcelArrived, InspectionScheduled]
+#       mode: all                         # all（AND join） / any（OR）
+#     cmd: ConfirmReadyForInspection
+
+# ---------- (I) Flow（v6: 廃止） ----------
+# トップレベル flows[] は廃止。フロー情報は次の 3 か所に分散して保持される：
+#   - フロー識別子 / 見出し / 種別 / 散文 → narratives[]（上記 (B)）
+#   - フロー連鎖（順序） → scenarios[].next（上記 (G)）
+#   - 分岐終端          → scenarios[].brs[].terminal（上記 (G)）
+# §2 フロー図は narratives[].entry を起点に builder が自動構成する。
+
+# ---------- (J) 意思決定ログ（旧 .md §6） ----------
+# decisions:
+#   - id: D1
+#     topic: <意思決定のテーマ>
+#     chosen: <採用オプション名（options[].name のいずれかと一致）>
+#     options:
+#       # name: 追跡用 ID（英語 slug 推奨）。label: HTML 表示用の日本語ラベル（任意）
+#       - { name: <opt-1>, label: <日本語ラベル>, adopted: true,  why: <採用理由> }
+#       - { name: <opt-2>, label: <日本語ラベル>, adopted: false, why_not: <不採用理由> }
+#     affects: [<関連 AGG/BC 名>]
+
+# ---------- (K) オープンクエスチョン（旧 .md §5） ----------
+# questions:
+#   - id: Q1
+#     topic: <確認したい事項>
+#     why: <決まると何が変わるか>
+#     status: open                          # open | closed
+#     # decision_id: D1                      # closed の場合
+
+# ---------- (L) 次のアクション（旧 .md §4） ----------
+# actions:
+#   - id: A1
+#     text: <ステークホルダー向けに何をすればよいか>
+#     owner: <担当者（任意）>
+
+# ---------- (M) リードモデル候補（旧 .md §9） ----------
+# queries:
+#   - name: <QryName>
+#     ctx: <bc-slug>
+#     purpose: <何を確認して何を決めるか>
+#     users: <利用者（アクター / ポリシー）>
+#     sources:
+#       - <ソース AGG / EVT 等>
+#     formula: <算出条件・絞り込み式>
+
+# =============================================================================
+# 上記をすべてコメントアウトしているので、本ファイルそのものは valid な空 DML。
+# 必要なセクションからコメントを外して埋めていく。
+# =============================================================================
+session:
+  id: meetup-20260712
+  domain: meetup-community-event
+  phase: '7'
+  status: 'Phase 7 完了: 構造 18/19 clean（残 2 件は D6 意図的許容）・意味チェック 6 観点実施・所見反映済み'
+  html_link: ../../dist/eventstorming/meetup-20260712.html
+  goal: 参加申込〜承認〜キャンセル〜繰り上げの参加ライフサイクルと、出来事起点の通知全体（参加確定・リマインダー・中止・繰り上げ・アンケート）の因果を一枚のフローに可視化する。コミュニティ運営は「申込者はコミュニティメンバー」という背景前提に留め、アンケート回答の集計・課金決済は対象外
+narratives:
+  - id: happy
+    title: ハッピーパス — イベント企画から開催・アンケートまで
+    kind: happy
+    prose: "主催者はタイトル・開催日時・開催形式（オンライン/会場/ハイブリッド）・定員を決めてイベントを下書きとして作成する。この時点では誰にも見えない。内容が固まったら主催者が公開の操作を行い、コミュニティのメンバーが申し込めるようになる。参加者は公開されたイベントに参加申込をし、定員に空きがあれば「申込済み」として受け付けられる。主催者は申込一覧を確認し、まとめて承認する。承認された参加者には「参加が確定しました」の通知が届く。開催日が近づくと、システムが自動で対象イベントを検知し、承認済みの参加者全員へリマインダーを送る（前日目安）。当日、参加者は会場受付でチェックインし、来場の記録が残る。イベントが終わると主催者がイベントを「終了」にし、この操作をきっかけに承認済み参加者全員へアンケート依頼が自動送信される。\n"
+    entry: 主催者がイベントを作成する
+  - id: alt-waitlist
+    title: 代替 — 満席申込とキャンセル発生時の自動繰り上げ
+    kind: alt
+    prose: "満席のイベントに申し込むと、その場で「キャンセル待ち」として申込順に登録される。参加確定者がキャンセルすると本人は「キャンセル済み」になり、それをきっかけに主催者へ「参加キャンセルが出ました」通知が飛び、同時にキャンセル待ち先頭が自動で参加確定に繰り上がる（主催者の再承認は不要）。繰り上がった本人にだけ確定通知が届く（主催者への繰り上げ通知は意図的に送らない）。\n"
+    entry: 参加者が参加申し込みをする
+  - id: alt-cancel-event
+    title: 代替 — 開催前のイベント中止
+    kind: alt
+    prose: "公開中でまだ開催日前のイベントのみ中止できる（開催日を過ぎたものは「終了」で閉じる）。主催者が中止の操作をするとイベントは中止状態になり、申込済み・参加確定・キャンセル待ちの全員へ中止のお知らせが自動で飛ぶ（D4）。当日会場に来てしまう事故を避けるため即時・全員が原則。文面は状態別に出し分けない。\n"
+    entry: 主催者がイベントを中止する
+  - id: alt-edit
+    title: 代替 — 公開後のイベント編集
+    kind: alt
+    prose: "下書き中と公開中のイベントは編集できる（会場変更・タイポ修正など）。定員・日時のチェックは作成時と同じものがかかる。終了済み・中止済みは記録なので編集不可。編集しても参加者へ変更通知が自動で飛ぶ仕組みは無く、会場変更時は主催者が手動で周知しているのが実情。\n"
+    entry: 主催者がイベントを編集する
+questions:
+  - id: Q1
+    topic: 中止通知の宛先に「承認前（申込済み）」の参加者を含めるか
+    why: 現運用は参加確定＋キャンセル待ちのみが宛先で、承認前の申込者が漏れている疑いをエキスパート自身が指摘（T5）
+    status: closed
+    decision_id: D4
+  - id: Q2
+    topic: 公開後のイベント編集時に参加者へ変更通知を自動送信するか
+    why: 現状は主催者の手動周知。会場変更の見落としリスクがある（T5）。今回のスコープでは通知一覧の完全性に関わる
+    status: closed
+    decision_id: D5
+  - id: Q3
+    topic: 「定員は確定者数を下回れない」ルールの導入と、既に超過しているイベントの繰り上げ挙動
+    why: 現行は確定 30 名のイベントを定員 20 に編集できてしまう（T8）。超過状態では満席判定が狂い、キャンセル発生時の自動繰り上げが超過をさらに膨らませる。エキスパートは絶対ルール化を希望
+    status: closed
+    decision_id: D3
+  - id: Q4
+    topic: イベント中止後の参加レコードの後始末（一括取消するか・キャンセル待ち列をクリアするか）
+    why: 中止のお知らせは飛ぶが Participation は生きたまま残る（意味チェック saga 所見）。一括取消を導入すると ParticipationCancelled 連発→繰り上げ暴発の連鎖リスクがあり、ガード設計とセットで要検討
+    status: open
+  - id: Q5
+    topic: 一括承認で承認されなかった申込（否認・保留）の扱い
+    why: 否認イベント・通知が未定義で、承認されない申込者は申込済みのまま宙に浮く（意味チェック所見）。開催日まで放置される体験の要否を確認したい
+    status: open
+contexts:
+  - name: community
+    note: 背景 BC（今回スコープ外）。「イベントに申し込む人はそのコミュニティのメンバーである」前提を供給する。メンバー（Member）概念はスコープ外のため lang 名簿から除外し、participation/checkin では役割名 Participant（参加者）として分離（bc_vocabulary_collision 解消・Conformist 的流用）
+    lang:
+      actors:
+        Organizer: 主催者
+    up: []
+    dn:
+      - ctx: event
+        rel: Customer-Supplier
+        roles:
+          - U
+        prRoles:
+          - D
+        note: イベントはコミュニティ配下で開催される
+      - ctx: participation
+        rel: Customer-Supplier
+        roles:
+          - U
+        prRoles:
+          - D
+        note: 申込者はメンバーである前提を供給
+    description: '**背景 BC（今回スコープ外）**。コミュニティの立ち上げ・メンバーの加入申請・承認・却下・脱退を扱う。今回のモデルには「イベントに申し込む人はそのコミュニティのメンバーである」という前提だけを供給する。運用は安定しており今回は境界の意識のみ（T2, T6）。'
+    sub: community-foundation
+  - name: event
+    lang:
+      actors:
+        Organizer: 主催者
+        System: システム
+      cmds:
+        CreateEvent: イベントを下書き作成する
+        PublishEvent: イベントを公開する
+        UpdateEvent: イベントを編集する
+        CloseEvent: イベントを終了する
+        CancelEvent: イベントを中止する
+        CheckUpcomingEvents: 開催日接近をチェックする
+      evts:
+        EventCreated: イベントが下書き作成された
+        EventPublished: イベントが公開された
+        EventUpdated: イベントが編集された
+        EventClosed: イベントが終了された
+        EventCancelled: イベントが中止された
+        EventDateApproached: 開催日が近づいた
+      qrys:
+        FindUpcomingEvents: リマインダー対象の開催間近イベント一覧
+      states:
+        DRAFT: 下書き
+        PUBLISHED: 公開中
+        CLOSED: 終了済
+        CANCELLED: イベント中止済
+      vos:
+        Capacity: 定員
+        EventFormat: 開催形式（オンライン/会場/ハイブリッド）
+      aggs:
+        Event: イベント
+    up:
+      - ctx: community
+        rel: Customer-Supplier
+        roles:
+          - D
+        prRoles:
+          - U
+    dn:
+      - ctx: participation
+        rel: Customer-Supplier
+        roles:
+          - U
+          - OHS
+        prRoles:
+          - D
+          - CF
+      - ctx: notification
+        rel: Customer-Supplier
+        roles:
+          - U
+        prRoles:
+          - D
+          - CF
+    description: "イベントの **下書き・公開・編集・終了・中止** というライフサイクルを主催者の意思で完結させる文脈。開催日接近の時間駆動検知（スケジューラ）もイベントの状態を読むためここに置く。\n- **目的**: 主催者が開催準備を下書きから安全に進め、公開・終了・中止の節目を明確にする\n- **制約**: 終了は公開中のみ／中止は公開中かつ開催日前のみ／編集は下書き・公開中のみ"
+    sub: event-lifecycle
+    aggs:
+      - Event
+  - name: participation
+    lang:
+      actors:
+        Participant: 参加者
+        Organizer: 主催者
+        System: システム
+      cmds:
+        ApplyForEvent: 参加を申し込む
+        ApproveParticipations: 申込を一括承認する
+        CancelParticipation: 参加をキャンセルする
+        PromoteWaitlistEntry: キャンセル待ち先頭を繰り上げる
+      evts:
+        ParticipationApplied: 参加申込が受け付けられた
+        ParticipationWaitlisted: キャンセル待ちに登録された
+        ParticipationApproved: 参加が確定した
+        ParticipationCancelled: 参加がキャンセルされた
+        WaitlistPromoted: キャンセル待ちから繰り上がった
+      qrys:
+        GetRemainingCapacity: 残席数
+        GetApplicationList: 申込済み一覧（申込日時昇順）
+        NextWaitlistedParticipation: キャンセル待ち先頭
+      pols:
+        PromoteFromWaitlist: キャンセル時の自動繰り上げ
+      states:
+        APPLIED: 申込済
+        WAITLISTED: キャンセル待ち
+        APPROVED: 参加確定
+        CANCELLED: 参加キャンセル済
+      aggs:
+        Participation: 参加申込
+    up:
+      - ctx: event
+        rel: Customer-Supplier
+        roles:
+          - D
+          - CF
+        prRoles:
+          - U
+          - OHS
+      - ctx: community
+        rel: Customer-Supplier
+        roles:
+          - D
+        prRoles:
+          - U
+    dn:
+      - ctx: checkin
+        rel: Customer-Supplier
+        roles:
+          - U
+        prRoles:
+          - D
+      - ctx: notification
+        rel: Customer-Supplier
+        roles:
+          - U
+        prRoles:
+          - D
+          - CF
+    description: "参加申込の **受付・キャンセル待ち・一括承認・キャンセル・自動繰り上げ** を扱う、今回のセッションの核心文脈。満席時は断らず申込順でキャンセル待ちに載せ、キャンセル発生時は待ち先頭を再承認なしで自動確定に繰り上げる。\n- **目的**: 定員を無駄にせず（稼働率）、参加者に速く確実な体験を返す\n- **制約**: 同一人物の重複申込不可／承認対象は申込済みのみ／キャンセルは申込済み・確定のどちらからでも可"
+    sub: participation-core
+    note: '用語注意①: participation の「キャンセル」は参加の取りやめ。event の「キャンセル（中止）」とは別概念（CS 表記ゆれの温床）。用語注意②: 「承認」（主催者視点の操作）と「確定」（参加者視点の結果）は同一の瞬間を指す二面語。ApproveParticipations→ParticipationApproved（参加が確定した）のラベル差は意図的'
+    aggs:
+      - Participation
+  - name: checkin
+    lang:
+      actors:
+        Participant: 参加者
+      cmds:
+        CheckIn: チェックインする
+      evts:
+        CheckedIn: チェックインされた
+      aggs:
+        CheckIn: チェックイン記録
+    up:
+      - ctx: participation
+        rel: Customer-Supplier
+        roles:
+          - D
+        prRoles:
+          - U
+    dn: []
+    description: 当日の来場受付。**確定済みの参加に対して 1 回だけ** チェックインを記録する。未確定者の来場エラーと二重チェックインの拒否が現場の主要関心事（T6）。来場実績データはアンケート・リマインダーと別軸の出席率把握に使う。
+    sub: onsite-checkin
+    aggs:
+      - CheckIn
+  - name: notification
+    lang:
+      actors:
+        System: システム
+      cmds:
+        SendApprovalNotification: 参加確定通知を送る
+        SendWaitlistPromotionNotification: 繰り上げ通知を送る
+        NotifyOrganizer: 主催者へキャンセル通知を送る
+        SendReminderNotification: リマインダーを送る
+        SendSurvey: アンケート依頼を送る
+        SendCancellationNotification: 中止のお知らせを送る
+      evts:
+        ApprovalNotificationSent: 参加確定通知が送られた
+        WaitlistPromotionNotified: 繰り上げ通知が送られた
+        OrganizerNotifiedOnCancel: 主催者へキャンセル通知が送られた
+        ReminderSent: リマインダーが送られた
+        SurveySent: アンケート依頼が送られた
+        CancellationNotificationSent: 中止のお知らせが送られた
+      qrys:
+        AllApprovedParticipations: 承認済み参加者一覧
+        AllActiveParticipations: 確定＋キャンセル待ち参加者一覧
+      pols:
+        SendApprovalOnApproved: 承認時の確定通知
+        NotifyOrganizerOnCancel: キャンセル時の主催者通知
+        NotifyWaitlistPromotion: 繰り上げ時の本人通知
+        SendReminder: 開催日接近リマインダー
+        SendSurveyOnClose: 終了時のアンケート依頼
+        NotifyEventCancelled: 中止時の全員通知
+      vos:
+        NotificationType: 通知種別（確定/繰り上げ/主催者キャンセル/リマインダー/アンケート/中止）
+      aggs:
+        Notification: 通知レコード
+    up:
+      - ctx: event
+        rel: Customer-Supplier
+        roles:
+          - D
+          - CF
+        prRoles:
+          - U
+      - ctx: participation
+        rel: Customer-Supplier
+        roles:
+          - D
+          - CF
+        prRoles:
+          - U
+    dn: []
+    description: "**「どの出来事をきっかけに、誰に、何を送るか」** を一手に引き受ける文脈。上流（event / participation）の出来事に追従して通知レコードを作る。参加確定・繰り上げ・主催者向けキャンセル・リマインダー・アンケート依頼・中止のお知らせの 6 種。\n- **目的**: 通知の全量をこの文脈の一覧で見えるようにする（goal の核心）\n- **制約**: 繰り上げ通知は本人のみ（主催者へは送らない）／中止通知は確定者＋キャンセル待ち全員へ即時"
+    sub: notification-delivery
+    aggs:
+      - Notification
+scenarios:
+  - name: 主催者がイベントを作成する
+    ctx: event
+    actor: Organizer
+    cmd: CreateEvent
+    evt: EventCreated
+    agg: Event
+    next: 主催者がイベントを公開する
+    rules:
+      - rule: capacity must be an integer between 1 and 1000
+        why: 定員 0 のイベントは申込導線が成立せず、極端な大人数は運営が破綻するため
+      - rule: startsAt must be in the future and endsAt must be after startsAt
+        why: 過去日程のイベントは告知・申込の前提が崩れるため
+    errs:
+      - cond: capacity < 1 or capacity > 1000
+        err: InvalidCapacityError
+        when: 定員 0 以下、または上限 1000 超で作成しようとした
+      - cond: startsAt <= now
+        err: EventDateInPastError
+        when: 過去日程で作成しようとした
+      - cond: endsAt <= startsAt
+        err: EventEndBeforeStartError
+        when: 終了が開始より前
+  - name: 主催者がイベントを公開する
+    ctx: event
+    actor: Organizer
+    cmd: PublishEvent
+    evt: EventPublished
+    agg: Event
+    pivotal: true
+    next: 参加者が参加申し込みをする
+    rules:
+      - rule: only DRAFT events can be published
+        why: 公開の節目を一度きりにしないと申込導線と通知の前提が壊れるため
+    errs:
+      - cond: status != DRAFT
+        err: EventAlreadyPublishedError
+        when: 公開済み・終了済み・中止済みを再公開しようとした（エラー名は実装由来。cond の全域をカバーする点に注意）
+  - name: 主催者がイベントを編集する
+    ctx: event
+    actor: Organizer
+    cmd: UpdateEvent
+    evt: EventUpdated
+    agg: Event
+    note: 編集による変更通知は現状存在しない（手動周知）— Q2
+    rules:
+      - rule: capacity and date constraints from creation must still hold after update
+        why: 公開後の編集で作成時の整合（定員範囲・日付前後関係）が崩れないように
+      - rule: capacity must not be reduced below current approved count
+        why: 確定者を勝手に外せず、超過状態は満席判定と自動繰り上げを狂わせるため（T8・D3）
+    errs:
+      - cond: status in (CLOSED, CANCELLED)
+        err: EventNotEditableError
+        when: 終了済み・中止済みは記録なので編集不可
+      - cond: newCapacity < approvedCount
+        err: CapacityBelowApprovedCountError
+        when: 確定者数を下回る定員への減員（D3 の新ルール。現行実装には無く A2 でバックログ化）
+  - name: 主催者がイベントを終了する
+    ctx: event
+    actor: Organizer
+    cmd: CloseEvent
+    evt: EventClosed
+    agg: Event
+    pivotal: true
+    pol:
+      - SendSurveyOnClose
+    next: 通知コンテキストがアンケート依頼を送信する
+    rules:
+      - rule: only PUBLISHED events can be closed
+        why: 下書きに参加者はおらず、アンケート送信の対象が存在しないため
+    errs:
+      - cond: status != PUBLISHED
+        err: EventNotYetHeldError
+        when: 下書き・終了済み・中止済みを終了しようとした（エラー名は実装由来で未開催ケース中心。cond は二重終了も含む）
+  - name: 主催者がイベントを中止する
+    ctx: event
+    actor: Organizer
+    cmd: CancelEvent
+    evt: EventCancelled
+    agg: Event
+    pol:
+      - NotifyEventCancelled
+    next: 通知コンテキストが中止のお知らせを送信する
+    rules:
+      - rule: only PUBLISHED events before startsAt can be cancelled
+        why: 開催済みイベントの中止は事実と矛盾する。当日来場事故を防ぐため中止は開催前に限る
+    errs:
+      - cond: startsAt <= now
+        err: EventAlreadyOccurredError
+        when: 開催済みイベントを中止しようとした
+      - cond: status != PUBLISHED
+        err: EventNotCancellableError
+        when: 未公開・終了済み・中止済みを中止しようとした（実装未定義の提案エラー）
+  - name: システムが開催日接近を検知する
+    ctx: event
+    actor: System
+    qry:
+      - FindUpcomingEvents
+    cmd: CheckUpcomingEvents
+    evt: EventDateApproached
+    pol:
+      - SendReminder
+    next: 参加者がチェックインする
+  - name: 参加者が参加申し込みをする
+    ctx: participation
+    actor: Participant
+    qry:
+      - GetRemainingCapacity
+    cmd: ApplyForEvent
+    agg: Participation
+    brMode: exclusive
+    brs:
+      - cond: remainingCapacity > 0
+        evt: ParticipationApplied
+      - cond: remainingCapacity = 0
+        evt: ParticipationWaitlisted
+        note: 申込順でキャンセル待ち列に並ぶ
+    next:
+      happy: 主催者が参加申し込みを一括承認する
+      alt-waitlist: 参加者が参加をキャンセルする
+    rules:
+      - rule: one application per member per event
+        why: 二重申込は定員計算と繰り上げ順序を破壊する（T8 絶対 NG）
+      - rule: applications are accepted only for PUBLISHED events
+        why: 非公開・終了・中止イベントへの申込は導線として存在しない
+    errs:
+      - cond: event.status != PUBLISHED
+        err: EventNotAvailableError
+        when: 未公開・終了済み・中止済みイベントへ申し込もうとした
+      - cond: already applied by same member
+        err: AlreadyAppliedError
+        when: 同一人物が同一イベントに再申込
+  - name: 主催者が参加申し込みを一括承認する
+    ctx: participation
+    actor: Organizer
+    qry:
+      - GetApplicationList
+    cmd: ApproveParticipations
+    evt: ParticipationApproved
+    agg: Participation
+    pivotal: true
+    pol:
+      - SendApprovalOnApproved
+    next: システムが開催日接近を検知する
+    note: 承認対象は「申込済み」のみ。キャンセル待ちは対象外（T6）
+    rules:
+      - rule: all targets must be in APPLIED status
+        why: キャンセル待ちや確定済みが混ざると承認の意味が壊れる（承認対象は申込済みのみ・T6）
+    errs:
+      - cond: any target not in APPLIED
+        err: InvalidStatusTransitionError
+        when: キャンセル待ち・確定済み・キャンセル済みが承認対象に混在した
+  - name: 参加者が参加をキャンセルする
+    ctx: participation
+    actor: Participant
+    cmd: CancelParticipation
+    evt: ParticipationCancelled
+    agg: Participation
+    pivotal: true
+    pol:
+      - PromoteFromWaitlist
+      - NotifyOrganizerOnCancel
+    next:
+      alt-waitlist: システムがキャンセル待ち先頭を繰り上げる
+    note: 承認前（申込済み）でもキャンセル可（T6）
+    rules:
+      - rule: only APPLIED or APPROVED participations can be cancelled
+        why: キャンセル待ちの離脱も同じ操作で扱うかは今後の論点。確定/申込済みからのキャンセルが波及処理（繰り上げ・主催者通知）の起点になる
+      - rule: waitlist promotion must fire only when an APPROVED participation was cancelled
+        why: 申込済み（枠未消費）のキャンセルで繰り上げると定員超過を作る。previousStatus が判断材料（意味チェック saga 所見）
+    errs:
+      - cond: status not in (APPLIED, APPROVED)
+        err: InvalidStatusTransitionError
+        when: キャンセル待ち・キャンセル済みからのキャンセル操作（待ち離脱の扱いは検討中）
+  - name: システムがキャンセル待ち先頭を繰り上げる
+    ctx: participation
+    actor: System
+    cmd: PromoteWaitlistEntry
+    evt: WaitlistPromoted
+    agg: Participation
+    pol:
+      - NotifyWaitlistPromotion
+    next:
+      alt-waitlist: 通知コンテキストが繰り上げ通知を送信する
+    note: キャンセル待ちが 0 件のときは何もしない（no-op）。主催者の再承認は不要で自動確定（T4）
+    rules:
+      - rule: promote strictly the head of the waitlist (registration order), exactly one
+        why: 追い越しは参加者の信頼を失う絶対 NG（T8）。1 キャンセル = 1 繰り上げで超過を作らない
+      - rule: no promotion for CANCELLED or CLOSED events
+        why: 中止済み・終了済みイベントへ繰り上げてしまう暴発を防ぐ（意味チェック saga 所見）
+    errs:
+      - cond: target not in WAITLISTED
+        err: InvalidStatusTransitionError
+        when: 繰り上げ対象がキャンセル待ち状態でない
+  - name: 参加者がチェックインする
+    ctx: checkin
+    actor: Participant
+    cmd: CheckIn
+    evt: CheckedIn
+    agg: CheckIn
+    next: 主催者がイベントを終了する
+    rules:
+      - rule: only APPROVED participations can check in, at most once
+        why: 未確定者の受付通過と二重チェックインは現場の絶対 NG（T6, T8）
+    errs:
+      - cond: participation.status != APPROVED
+        err: ParticipationNotApprovedError
+        when: キャンセル待ち・申込済み止まりの人が受付に来た
+      - cond: check-in already exists
+        err: CheckInAlreadyExistsError
+        when: 二重チェックイン
+  - name: 通知コンテキストが参加確定通知を送信する
+    ctx: notification
+    actor: System
+    cmd: SendApprovalNotification
+    evt: ApprovalNotificationSent
+    agg: Notification
+  - name: 通知コンテキストが繰り上げ通知を送信する
+    ctx: notification
+    actor: System
+    cmd: SendWaitlistPromotionNotification
+    evt: WaitlistPromotionNotified
+    agg: Notification
+    note: 主催者への副次通知は意図的に送らない（T4 → D 候補）
+  - name: 通知コンテキストが主催者キャンセル通知を送信する
+    ctx: notification
+    actor: System
+    cmd: NotifyOrganizer
+    evt: OrganizerNotifiedOnCancel
+    agg: Notification
+  - name: 通知コンテキストがリマインダーを送信する
+    ctx: notification
+    actor: System
+    cmd: SendReminderNotification
+    evt: ReminderSent
+    agg: Notification
+    note: 宛先は承認済みのみ。キャンセル待ちには送らない（T6）
+  - name: 通知コンテキストがアンケート依頼を送信する
+    ctx: notification
+    actor: System
+    cmd: SendSurvey
+    evt: SurveySent
+    agg: Notification
+  - name: 通知コンテキストが中止のお知らせを送信する
+    ctx: notification
+    actor: System
+    cmd: SendCancellationNotification
+    evt: CancellationNotificationSent
+    agg: Notification
+    note: 宛先は申込済み＋確定＋キャンセル待ちの全員（D4 で承認前も含めると決定）
+policies:
+  - name: SendApprovalOnApproved
+    ctx: notification
+    trg: ParticipationApproved
+    cmd: SendApprovalNotification
+    evt: ApprovalNotificationSent
+    agg: Notification
+    note: 一括承認時は対象件数分の通知が送られる
+  - name: PromoteFromWaitlist
+    ctx: participation
+    trg: ParticipationCancelled
+    qry: NextWaitlistedParticipation
+    cmd: PromoteWaitlistEntry
+    evt: WaitlistPromoted
+    agg: Participation
+    note: キャンセル待ち先頭（登録日時昇順）を自動繰り上げ。0 件なら no-op。発火は確定（APPROVED）参加のキャンセル時のみ（申込済みキャンセルは枠未消費のため繰り上げない）。中止済み・終了済みイベントではガード
+  - name: NotifyOrganizerOnCancel
+    ctx: notification
+    trg: ParticipationCancelled
+    cmd: NotifyOrganizer
+    evt: OrganizerNotifiedOnCancel
+    agg: Notification
+  - name: NotifyWaitlistPromotion
+    ctx: notification
+    trg: WaitlistPromoted
+    cmd: SendWaitlistPromotionNotification
+    evt: WaitlistPromotionNotified
+    agg: Notification
+    note: 本人のみ。主催者への副次通知は送らない（T4 決定）
+  - name: SendReminder
+    ctx: notification
+    trg: EventDateApproached
+    qry: AllApprovedParticipations
+    bulk: true
+    cmd: SendReminderNotification
+    evt: ReminderSent
+    agg: Notification
+    note: 宛先は承認済みのみ。0 件なら no-op
+  - name: SendSurveyOnClose
+    ctx: notification
+    trg: EventClosed
+    qry: AllApprovedParticipations
+    bulk: true
+    cmd: SendSurvey
+    evt: SurveySent
+    agg: Notification
+    note: 承認済み参加者 0 件なら no-op
+  - name: NotifyEventCancelled
+    ctx: notification
+    trg: EventCancelled
+    qry: AllActiveParticipations
+    bulk: true
+    cmd: SendCancellationNotification
+    evt: CancellationNotificationSent
+    agg: Notification
+    note: 宛先は申込済み＋確定＋キャンセル待ちの全員（D4）。文面は共通で出し分けしない。0 件なら no-op
+domains:
+  - name: meetup-domain
+    vision: コミュニティイベントの企画から参加確定・当日受付・通知までを一気通貫で支え、定員の稼働率と参加体験を最大化する
+    subs:
+      - name: participation-core
+        type: CORE_SUBDOMAIN
+        vision: 満席でも申込順で待て、キャンセルの瞬間に自動繰り上げで席を無駄にしない。競合が手作業で捌く待ち行列を自動化する差別化の心臓部（T7）
+      - name: event-lifecycle
+        type: SUPPORTING_SUBDOMAIN
+        vision: イベントの下書き〜公開〜終了/中止の節目管理。中止・終了時に「誰に何を伝えるか」の宛先ルールが乗るため内製で手放せない（T7 次点）
+      - name: community-foundation
+        type: SUPPORTING_SUBDOMAIN
+        vision: 参加の前提（メンバーシップ）を作る土台。差別化ポイントではない
+      - name: onsite-checkin
+        type: GENERIC_SUBDOMAIN
+        vision: QR 等の汎用チェックインツールで置換可能。ただし「承認済みのみ受付可」の判定ルールだけは自社ルールとして残す（T7）
+      - name: notification-delivery
+        type: GENERIC_SUBDOMAIN
+        vision: メール・プッシュの配送そのものは既製サービスで可。「宛先を決めるルール」は上流 BC の関心として分離
+aggregates:
+  - name: Event
+    ctx: event
+    purpose: イベントのライフサイクル（下書き→公開→終了/中止）と開催情報・定員の単一の真実源
+    background: 公開・終了・中止の節目が曖昧だと、申込可否や通知の宛先判断が全て崩れる。状態を Event に一元化し、時間駆動のリマインダー検知も Event の状態を読む
+    constraints:
+      - 定員は 1〜1000 の整数
+      - 開催日時は作成時点で未来、終了日時は開始より後
+      - タイトルは 1〜100 文字
+      - 終了できるのは公開中のみ／中止できるのは公開中かつ開催日前のみ
+      - 編集できるのは下書き・公開中のみ（終了済み・中止済みは記録）
+      - '[?] 定員は確定者数を下回る値に減らせない — 現行は素通りする既知ギャップ。T8 で絶対ルール化に合意（Q3）'
+    states:
+      - DRAFT
+      - PUBLISHED
+      - CLOSED
+      - CANCELLED
+    transitions:
+      - from: DRAFT
+        to: PUBLISHED
+        via: PublishEvent
+        when: 内容が固まり主催者が公開を決めた
+      - from: PUBLISHED
+        to: CLOSED
+        via: CloseEvent
+        when: 開催後に主催者が閉じる
+      - from: PUBLISHED
+        to: CANCELLED
+        via: CancelEvent
+        when: 開催前に開催困難と判断
+    attrs:
+      - name: eventId
+        type: EventId
+        required: true
+      - name: communityId
+        type: CommunityId
+        required: true
+        note: 開催母体（背景 BC community への参照）
+      - name: title
+        type: string
+        required: true
+        note: 1〜100 文字
+      - name: startsAt
+        type: date
+        required: true
+      - name: endsAt
+        type: date
+        required: true
+      - name: format
+        type: EventFormat
+        required: true
+        note: ONLINE / OFFLINE / HYBRID
+      - name: capacity
+        type: int
+        required: true
+        note: 1〜1000。[?] 確定者数を下回る減員の禁止は Q3
+      - name: status
+        type: EventStatus
+        required: true
+    events:
+      - name: EventCreated
+        params:
+          - name: eventId
+            type: EventId
+          - name: communityId
+            type: CommunityId
+          - name: title
+            type: string
+          - name: capacity
+            type: int
+          - name: startsAt
+            type: date
+      - name: EventPublished
+        params:
+          - name: eventId
+            type: EventId
+      - name: EventUpdated
+        params:
+          - name: eventId
+            type: EventId
+      - name: EventClosed
+        params:
+          - name: eventId
+            type: EventId
+      - name: EventCancelled
+        params:
+          - name: eventId
+            type: EventId
+          - name: reason
+            type: string
+        note: 中止理由は全員向けお知らせの本文素材
+      - name: EventDateApproached
+        params:
+          - name: eventId
+            type: EventId
+          - name: startsAt
+            type: date
+  - name: Participation
+    ctx: participation
+    purpose: 参加申込 1 件の状態（申込済み/キャンセル待ち/確定/キャンセル済み）の単一の真実源。キャンセル待ちの順序（申込順）もここが持つ
+    background: 満席時に断らず待たせ、キャンセルの瞬間に自動で繰り上げる差別化の心臓部（CORE）。待ち行列を Event 側に持たせるとイベントのライフサイクル責務が肥大化するため、申込ごとの独立した状態として管理する
+    constraints:
+      - 同一人物は同一イベントに 1 申込のみ（重複不可）
+      - 申込できるのは公開中のイベントのみ
+      - 承認対象は申込済みのみ（キャンセル待ちは承認に含めない）
+      - 繰り上げは必ずキャンセル待ちの先頭（登録日時昇順）から。追い越し禁止・再承認不要
+    states:
+      - APPLIED
+      - WAITLISTED
+      - APPROVED
+      - CANCELLED
+    transitions:
+      - from: APPLIED
+        to: APPROVED
+        via: ApproveParticipations
+        when: 主催者の一括承認
+      - from: APPLIED
+        to: WAITLISTED
+        via: ApplyForEvent
+        when: 満席時は受付と同時にキャンセル待ちへ（生成時の初期状態分岐を表現する便宜。実際は WAITLISTED で直接生成される）
+      - from: WAITLISTED
+        to: APPROVED
+        via: PromoteWaitlistEntry
+        when: キャンセル発生時に先頭のみ自動繰り上げ（再承認不要）
+      - from: APPLIED
+        to: CANCELLED
+        via: CancelParticipation
+        when: 承認前の取りやめ（T6）
+      - from: APPROVED
+        to: CANCELLED
+        via: CancelParticipation
+        when: 確定後の取りやめ。繰り上げ・主催者通知の起点
+    attrs:
+      - name: participationId
+        type: ParticipationId
+        required: true
+      - name: eventId
+        type: EventId
+        required: true
+      - name: accountId
+        type: AccountId
+        required: true
+      - name: status
+        type: ParticipationStatus
+        required: true
+      - name: appliedAt
+        type: date
+        required: true
+        note: キャンセル待ちの順序（申込順・追い越し禁止）の根拠
+    events:
+      - name: ParticipationApplied
+        params:
+          - name: participationId
+            type: ParticipationId
+          - name: eventId
+            type: EventId
+          - name: accountId
+            type: AccountId
+      - name: ParticipationWaitlisted
+        params:
+          - name: participationId
+            type: ParticipationId
+          - name: eventId
+            type: EventId
+          - name: accountId
+            type: AccountId
+      - name: ParticipationApproved
+        params:
+          - name: participationId
+            type: ParticipationId
+          - name: accountId
+            type: AccountId
+      - name: ParticipationCancelled
+        params:
+          - name: participationId
+            type: ParticipationId
+          - name: eventId
+            type: EventId
+          - name: previousStatus
+            type: ParticipationStatus
+            note: 確定者のキャンセルか申込済みのキャンセルかで繰り上げ要否が変わる
+      - name: WaitlistPromoted
+        params:
+          - name: participationId
+            type: ParticipationId
+          - name: accountId
+            type: AccountId
+  - name: CheckIn
+    ctx: checkin
+    purpose: 当日来場の事実記録。参加確定 1 件に対し最大 1 回のチェックインを保証する
+    background: 出席実績をアンケート・リマインダーと別軸で残す。未確定者の来場・二重チェックインの拒否が現場の主要関心事（T6）
+    constraints:
+      - 参加確定（承認済み）の参加者のみチェックイン可
+      - 1 つの参加につきチェックインは 1 回のみ
+    attrs:
+      - name: checkInId
+        type: CheckInId
+        required: true
+      - name: participationId
+        type: ParticipationId
+        required: true
+        note: 参加確定 1 件につき最大 1 レコード
+      - name: checkedInAt
+        type: date
+        required: true
+    events:
+      - name: CheckedIn
+        params:
+          - name: checkInId
+            type: CheckInId
+          - name: participationId
+            type: ParticipationId
+          - name: checkedInAt
+            type: date
+        terminal: true
+  - name: Notification
+    ctx: notification
+    purpose: 「どの出来事で・誰に・何を送ったか」の通知レコード。宛先決定は各 POLICY が担い、本 AGG は送付事実の監査可能な記録に徹する
+    background: 通知種別が 6 つに増え、宛先ルールが人の頭の中にしか無い状態を解消する（goal）。配送手段（メール/プッシュ）は既製サービスに委譲し、ここは記録と種別を持つ
+    constraints:
+      - 通知レコードは必ず種別と宛先を持つ
+      - '確定通知: 承認された本人へ'
+      - '繰り上げ通知: 繰り上がった本人のみへ（主催者へは送らない・D2）'
+      - '主催者キャンセル通知: イベント主催者へ'
+      - 'リマインダー: 承認済み参加者全員へ（キャンセル待ちには送らない・T6）'
+      - 'アンケート依頼: 承認済み参加者全員へ'
+      - '中止のお知らせ: 申込済み＋確定＋キャンセル待ちの全員へ・文面は共通（D4）'
+    attrs:
+      - name: notificationId
+        type: NotificationId
+        required: true
+      - name: type
+        type: NotificationType
+        required: true
+      - name: recipientId
+        type: AccountId
+        required: true
+        note: 主催者通知は主催者の accountId
+      - name: eventId
+        type: EventId
+        required: true
+      - name: createdAt
+        type: date
+        required: true
+queries:
+  - name: GetRemainingCapacity
+    ctx: participation
+    purpose: 申込時の満席判定に使う残席数（計算値）
+    users: 参加者・システム
+    sources:
+      - Event
+      - Participation
+    formula: Event.capacity − count(Participation where status in (APPLIED, APPROVED))
+    note: '[?] APPLIED を残席消費に数えるかは満席判定の要。超過状態（Q3）ではこの値が負になり得る'
+  - name: GetApplicationList
+    ctx: participation
+    purpose: 一括承認の対象となる申込済み一覧（申込日時昇順の BULK）
+    users: 主催者
+    sources:
+      - Participation
+  - name: NextWaitlistedParticipation
+    ctx: participation
+    purpose: 自動繰り上げの対象となるキャンセル待ち先頭 1 件（登録日時昇順・追い越し禁止の根拠）
+    users: システム
+    sources:
+      - Participation
+  - name: AllApprovedParticipations
+    ctx: notification
+    purpose: リマインダー・アンケート依頼の宛先となる承認済み参加者の一覧（BULK・BC 横断）
+    users: システム
+    sources:
+      - Participation
+  - name: AllActiveParticipations
+    ctx: notification
+    purpose: 中止のお知らせの宛先となる申込済み＋確定＋キャンセル待ち参加者の一覧（BULK・BC 横断）
+    users: システム
+    sources:
+      - Participation
+    note: 'D4 で承認前（APPLIED）も含めると決定。status in (APPLIED, APPROVED, WAITLISTED)'
+  - name: FindUpcomingEvents
+    ctx: event
+    purpose: リマインダー送信ウィンドウに入った公開中イベントの列挙（時間窓の計算値）
+    users: システム
+    sources:
+      - Event
+    formula: status = PUBLISHED and now + windowStartHours <= startsAt <= now + windowEndHours
+decisions:
+  - id: D1
+    topic: キャンセル発生時の繰り上げを自動確定にするか、主催者の再承認を挟むか
+    chosen: auto-promote
+    options:
+      - name: auto-promote
+        label: 先頭を自動で参加確定に繰り上げる（再承認なし）
+        why: 一度申し込んでくれている人なので、空きが出た瞬間に即座に枠を渡すほうが定員稼働率も本人の体験も良い（T4）
+      - name: re-approval
+        label: 繰り上げ候補を主催者が再承認してから確定
+        why_not: 承認待ちの間に枠が空転する。主催者の手数が増え、競合が手作業で捌いている待ち行列自動化という差別化（CORE）が薄まる
+    affects:
+      - Participation
+      - PromoteFromWaitlist
+  - id: D2
+    topic: 繰り上げ発生を主催者にも通知するか
+    chosen: member-only
+    options:
+      - name: member-only
+        label: 繰り上がった本人にだけ通知する
+        why: キャンセル発生時には主催者へキャンセル通知が既に飛ぶ。繰り上げ通知まで重ねると通知がうるさくなり、大事な通知が埋もれる（T4 で議論済みの決定）
+      - name: notify-organizer-too
+        label: 主催者にも繰り上げ通知を送る
+        why_not: 主催者にとって繰り上げは定常動作であり情報価値が薄い。キャンセル通知と対で届き二重報告になる
+    affects:
+      - Participation
+      - Notification
+      - NotifyWaitlistPromotion
+  - id: D3
+    topic: 公開後の編集で定員を現在の確定者数より小さくできてしまう問題の扱い
+    chosen: floor-at-approved-count
+    options:
+      - name: floor-at-approved-count
+        label: 確定者数を下回る定員への減員を禁止する
+        why: 確定済みの人を勝手に外すことは絶対にしない運用が前提。超過状態は満席判定を狂わせ、キャンセル発生時の自動繰り上げが超過をさらに膨らませる構造的欠陥（T8）
+      - name: allow-with-manual-ops
+        label: 現状どおり許可し、超過は現場運用（超過開催・個別辞退依頼）で吸収
+        why_not: 場当たり対応が主催者の負担になっており、CORE の自動繰り上げが例外状態を悪化させる悪循環を放置することになる
+    affects:
+      - Event
+      - Participation
+      - PromoteFromWaitlist
+    note: 現行実装には存在しない新ルール。実装バックログ化は A2
+  - id: D4
+    topic: 中止のお知らせの宛先に承認前（申込済み）の参加者を含めるか
+    chosen: include-applied
+    options:
+      - name: include-applied
+        label: 申込済み・確定・キャンセル待ちの全員に送る
+        why: 申込者は本人としては参加するつもりで、承認は運営側の手続きに過ぎない。承認まで数日空く運用では、その間の中止が申込済みの人に丸ごと届かない構造的な穴になる。中止は稀で、届きすぎる害より届かない害（会場に来てしまう・無連絡中止の解約直結体験）が致命的（T9）。文面は状態別に出し分けず共通で良い
+      - name: active-only
+        label: 現状どおり確定＋キャンセル待ちのみ
+        why_not: 承認前の人の「参加するつもり」の期待を無視し、無連絡中止の体験を残す
+    affects:
+      - Participation
+      - NotifyEventCancelled
+      - AllActiveParticipations
+  - id: D5
+    topic: 公開後の編集内容を参加者へ自動通知するか
+    chosen: defer-manual
+    options:
+      - name: defer-manual
+        label: 今回は見送り。手動周知の現状を明記し、条件付き自動通知を宿題に残す
+        why: 編集の大半はタイポ修正・説明追記で、一律自動通知は大事な通知（リマインダー・確定・中止）の信頼を毀損するノイズになる。重要変更だけ送る条件設計は今回の範囲を超える（T10）。「無いことが決まっている」と「抜けている」を区別して明記する
+      - name: auto-notify-on-edit
+        label: 編集イベントを起点に自動の変更通知を導入
+        why_not: 何を送るべき変更かの線引き（開催日時・会場のみ等）が先に必要で、無条件導入はノイズを量産する
+    affects:
+      - Notification
+    note: 宿題は A1（開催日時・会場変更時のみの自動通知の条件設計）
+  - id: D6
+    topic: CMD 名の CRUD 風接頭辞（CreateEvent / UpdateEvent）を業務動詞に改名するか
+    chosen: keep-code-aligned
+    options:
+      - name: keep-code-aligned
+        label: 実装コード（バックログ）と同名を維持する
+        why: 本モデルはハンズオン用バックログ（issues-20260419.md）と実装コードの識別子に整合させることが利用価値の核。改名すると DML と実装の対応表が別途必要になる
+      - name: rename-business-verbs
+        label: DraftEvent / RescheduleEvent 等の業務動詞へ改名
+        why_not: 命名の作法としては正しいが、実装との対応が崩れるコストが今回は上回る
+    affects:
+      - Event
+    note: crud_cmd_naming の違反 2 件は本決定による意図的許容。check には観点単位の waive 機構が無いため exit 1 が残る
+actions:
+  - id: A1
+    text: 「開催日時・会場の変更時のみ自動通知」の条件設計を次期検討課題として起票する（D5 の宿題）
+    owner: 事業責任者
+    done: false
+  - id: A2
+    text: 「定員は確定者数を下回れない」バリデーション（D3）を実装バックログに登録する
+    owner: 事業責任者
+    done: false
+  - id: A3
+    text: Q4（中止後の参加後始末）と Q5（否認フロー）を次回セッションで有識者と決める
+    owner: 事業責任者
+    done: false

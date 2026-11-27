@@ -1,0 +1,93 @@
+name: CI
+
+# private リポジトリのため GitHub Actions は月 2,000 分の無料枠内で運用する。
+# 分数節約のため: docs のみの変更は skip / 古い実行は concurrency で自動キャンセル /
+# 重い E2E は pull_request のときだけ実行する。
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    name: Format / Lint / Test (Rust)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Lint (backend + native targets)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Lint (frontend / wasm32)
+        run: cargo clippy -p meetup-frontend --target wasm32-unknown-unknown -- -D warnings
+
+      # backend の単体・HTTP 統合テスト（インメモリ SQLite）と frontend の純粋関数テスト
+      - name: Test
+        run: cargo test --workspace --locked
+
+  e2e:
+    name: E2E (Playwright)
+    # 分数節約のため PR のときだけ実行する
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install trunk
+        run: cargo install trunk --locked --version 0.22.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+        working-directory: e2e
+
+      # Playwright の webServer 設定が backend(3000) と frontend(5173) を自動起動する
+      - name: Run E2E tests
+        run: npm test --workspace e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

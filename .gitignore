@@ -1,0 +1,53 @@
+# Rust
+target/
+
+# Build outputs (trunk)
+dist/
+
+# Dependencies (E2E 用 npm のみ)
+node_modules/
+
+# Environment（実シークレットは置かない。共有するのは .env.example のみ）
+.env
+.env.*
+!.env.example
+
+# Database（SQLite。開発・E2E 用）
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Test / E2E outputs
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Python（.claude/skills のスクリプト用）
+__pycache__/
+*.pyc
+
+# Git worktrees
+.worktrees/
+
+# Claude Code local state / overrides
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Obsidian workspace (docs/wiki を Obsidian で開いた場合の設定)
+.obsidian/

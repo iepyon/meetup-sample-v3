@@ -1,0 +1,43 @@
+services:
+  dev:
+    build:
+      context: .
+      args:
+        USER_UID: ${USER_UID:-501}
+        USER_GID: ${USER_GID:-20}
+    # Shared image tag so N worktree projects reuse one build instead of N builds
+    image: meetup-dev:local
+    volumes:
+      # Mount the project dir at the same host path so git worktree absolute
+      # paths work. MOUNT_ROOT is the main project dir (worktrees live nested
+      # under .worktrees/), scoping the bind to this repo only.
+      - ${MOUNT_ROOT}:${MOUNT_ROOT}
+      # Named volumes (Linux binaries / build artifacts, not macOS)
+      # WORK_DIR is the project or worktree dir; Compose prefixes volume names
+      # with the project name (-p), so worktree projects get isolated volumes.
+      - node_modules_root:${WORK_DIR}/node_modules
+      - node_modules_e2e:${WORK_DIR}/e2e/node_modules
+      # Rust のビルド成果物は bind mount だと遅いため named volume に置く
+      - cargo_target:${WORK_DIR}/target
+      - cargo_registry:/opt/cargo/registry
+      # Git config from host (read-only)
+      - ~/.gitconfig:/home/devuser/.gitconfig:ro
+      # Claude Code auth (~/.claude) は既定でマウントしない。コンテナ内 Claude Code
+      # 利用時のみ WITH_CLAUDE=1 で docker-compose.claude.yml を重ねる。
+    working_dir: ${WORK_DIR}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
+    environment:
+      - DATABASE_URL=file:./dev.db
+      - JWT_SECRET=${JWT_SECRET:-docker-dev-secret}
+      - PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    tty: true
+    stdin_open: true
+
+volumes:
+  node_modules_root:
+  node_modules_e2e:
+  cargo_target:
+  cargo_registry:

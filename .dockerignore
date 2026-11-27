@@ -1,0 +1,12 @@
+node_modules/
+target/
+frontend/dist/
+dist/
+*.db
+*.db-journal
+.env
+.env.*
+!.env.example
+coverage/
+.DS_Store
+*.log

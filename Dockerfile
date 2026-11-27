@@ -1,0 +1,83 @@
+FROM node:26-bookworm
+
+# Node は E2E (Playwright) と Claude Code CLI 用。アプリ本体は Rust (axum + Leptos)。
+# System dependencies: git, SQLite tools, jq, build tools, Playwright browser deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    sqlite3 \
+    jq \
+    curl \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    # Playwright Chromium dependencies
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxkbcommon0 \
+    libatspi2.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user matching macOS UID for bind mount permissions
+ARG USER_UID=501
+ARG USER_GID=20
+RUN groupadd --gid $USER_GID devuser 2>/dev/null || true \
+    && useradd --uid $USER_UID --gid $USER_GID -m devuser \
+    && mkdir -p /repo && chown devuser:$USER_GID /repo
+
+# Install gosu for entrypoint user switching
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+
+# Shared Playwright browser cache (writable by devuser for version flexibility)
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH \
+    && chown devuser:$USER_GID $PLAYWRIGHT_BROWSERS_PATH
+
+# Rust toolchain（rustup は root で共有パスに導入し、devuser から使えるようにする）
+# wasm32 ターゲットは Leptos (CSR) のビルドに、clippy / rustfmt は品質ゲートに必要
+ENV RUSTUP_HOME=/opt/rustup \
+    CARGO_HOME=/opt/cargo \
+    PATH=/opt/cargo/bin:$PATH
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
+        --component clippy --component rustfmt --target wasm32-unknown-unknown \
+    && cargo install trunk --locked --version 0.22.2 \
+    && chown -R devuser:$USER_GID /opt/rustup /opt/cargo
+
+# Allow git to work with bind-mounted repos (different owner)
+RUN git config --system --add safe.directory '*'
+
+# Claude Code CLI (root でインストール、devuser から実行可能)
+RUN npm install -g @anthropic-ai/claude-code
+
+# lefthook for git hooks (アーキテクチャ自動判定: arm64 ネイティブ実行に対応)
+# ダウンロードした .gz を公式 sha256 で検証してから展開（サプライチェーン対策）
+RUN set -e; \
+    case "$(dpkg --print-architecture)" in \
+      arm64) LH_ARCH=arm64; LH_SHA=417d57ef4b67863b34f7f8b7f52bf9f7ab4cd0ffc2047d49f4efb15e1e210b58 ;; \
+      amd64) LH_ARCH=x86_64; LH_SHA=fd164d97440108fe032377a1ff62228d7cff46e709c8475758b02313dbaf6896 ;; \
+      *) echo "unsupported arch: $(dpkg --print-architecture)" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/evilmartians/lefthook/releases/download/v1.10.4/lefthook_1.10.4_Linux_${LH_ARCH}.gz" -o lefthook.gz \
+    && echo "${LH_SHA}  lefthook.gz" | sha256sum -c - \
+    && gunzip lefthook.gz \
+    && chmod +x lefthook \
+    && mv lefthook /usr/local/bin/lefthook
+
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+WORKDIR /workspace
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["sleep", "infinity"]

@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: false
+  commands:
+    rust-fmt:
+      glob: "**/*.rs"
+      run: ./scripts/run-quality.sh "cargo fmt --all -- --check"
+    rust-clippy:
+      glob: "**/*.rs"
+      run: ./scripts/run-quality.sh "cargo clippy --workspace --all-targets -- -D warnings && cargo clippy -p meetup-frontend --target wasm32-unknown-unknown -- -D warnings"
+    rust-tests:
+      glob: "**/*.rs"
+      run: ./scripts/run-quality.sh "cargo test --workspace"
+    e2e-prettier:
+      glob: "e2e/**/*.{ts,json}"
+      run: ./scripts/run-quality.sh "npx prettier --check {staged_files}"

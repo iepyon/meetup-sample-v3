@@ -1,0 +1,8 @@
+# コンテナ内で Claude Code を使うときだけ重ねる override。
+# ホストの ~/.claude（認証情報）をマウントするため、既定の compose には含めない。
+# 使い方: ラッパー経由で `WITH_CLAUDE=1 ./scripts/docker-dev.sh shell`
+#   （worktree は CLAUDE_MOUNT_SUFFIX=":ro" が付与され読み取り専用でマウントされる）
+services:
+  dev:
+    volumes:
+      - ~/.claude:/home/devuser/.claude${CLAUDE_MOUNT_SUFFIX:-}
