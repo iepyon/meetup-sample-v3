@@ -2,10 +2,10 @@ import { test, expect, type Page } from "@playwright/test";
 
 const uniqueSuffix = () => Date.now().toString();
 
-/** datetime-local 入力用のローカル時刻文字列（YYYY-MM-DDTHH:mm）。過去日時で 422 にならないよう未来日を作る */
-function futureLocalDateTime(daysAhead: number, hour: number): string {
+/** datetime-local 入力用のローカル時刻文字列（YYYY-MM-DDTHH:mm）。今日から days 日後（負なら過去）の hour 時 */
+function localDateTimeFromToday(days: number, hour: number): string {
   const d = new Date();
-  d.setDate(d.getDate() + daysAhead);
+  d.setDate(d.getDate() + days);
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(hour)}:00`;
 }
@@ -63,8 +63,8 @@ test.describe("イベント", () => {
       await page
         .locator("textarea#event-description")
         .fill("TypeScriptでもくもくプログラミングする会");
-      await page.getByLabel("開始日時").fill(futureLocalDateTime(30, 19));
-      await page.getByLabel("終了日時").fill(futureLocalDateTime(30, 21));
+      await page.getByLabel("開始日時").fill(localDateTimeFromToday(30, 19));
+      await page.getByLabel("終了日時").fill(localDateTimeFromToday(30, 21));
       await page.locator("select#event-format").selectOption("ONLINE");
       await page.getByLabel("定員").clear();
       await page.getByLabel("定員").fill("50");
@@ -73,6 +73,27 @@ test.describe("イベント", () => {
       // コミュニティ詳細ページにリダイレクト
       await expect(
         page.getByRole("heading", { name: communityName }),
+      ).toBeVisible();
+    });
+  });
+
+  test.describe("入力エラー", () => {
+    test("開始日時が過去だと作成できず理由が表示される", async ({ page }) => {
+      const suffix = uniqueSuffix();
+      await registerAndLogin(page, suffix);
+      await createCommunity(page, suffix);
+      await page.getByRole("button", { name: "イベント作成" }).click();
+
+      await page.getByLabel("タイトル").fill("過去のイベント");
+      await page.getByLabel("開始日時").fill(localDateTimeFromToday(-1, 19));
+      await page.getByLabel("終了日時").fill(localDateTimeFromToday(-1, 21));
+      await page.getByRole("button", { name: "作成" }).click();
+
+      await expect(page.getByRole("alert")).toHaveText(
+        "開始日時には現在より後の日時を指定してください",
+      );
+      await expect(
+        page.getByRole("heading", { name: "イベント作成" }),
       ).toBeVisible();
     });
   });

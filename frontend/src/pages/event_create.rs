@@ -6,15 +6,17 @@ use wasm_bindgen::JsValue;
 use crate::api;
 use crate::components::{Button, Card, ErrorAlert, Input};
 use crate::types::{CreateEventRequest, EventFormat};
-use crate::utils::{format_label, parse_capacity};
+use crate::utils::{
+    EventFormInput, api_error_message, format_label, parse_capacity, validate_event_form,
+};
 
-/// `datetime-local` の値（ローカル時刻）を ISO 8601（UTC）に変換する。不正なら None。
-fn local_to_iso(value: &str) -> Option<String> {
-    let date = js_sys::Date::new(&JsValue::from_str(value));
-    if date.get_time().is_nan() {
+/// `datetime-local` の値（ローカル時刻）を Date にする。未入力・不正なら None。
+fn parse_local(value: &str) -> Option<js_sys::Date> {
+    if value.is_empty() {
         return None;
     }
-    Some(String::from(date.to_iso_string()))
+    let date = js_sys::Date::new(&JsValue::from_str(value));
+    (!date.get_time().is_nan()).then_some(date)
 }
 
 #[component]
@@ -36,32 +38,49 @@ pub fn EventCreatePage() -> impl IntoView {
         let Some(community_id) = params.read_untracked().get("id") else {
             return;
         };
-        if title.get().is_empty() || starts_at.get().is_empty() || ends_at.get().is_empty() {
-            error.set(Some("タイトルと日時を入力してください".into()));
+        let starts = parse_local(&starts_at.get_untracked());
+        let ends = parse_local(&ends_at.get_untracked());
+        let title_value = title.get_untracked();
+        let description_value = description.get_untracked();
+        let capacity_value = parse_capacity(&capacity.get_untracked());
+        let checked = validate_event_form(&EventFormInput {
+            title: &title_value,
+            description: &description_value,
+            starts_at_ms: starts.as_ref().map(js_sys::Date::get_time),
+            ends_at_ms: ends.as_ref().map(js_sys::Date::get_time),
+            capacity: capacity_value,
+            now_ms: js_sys::Date::now(),
+        });
+        if let Err(message) = checked {
+            error.set(Some(message.into()));
             return;
         }
-        let (Some(starts), Some(ends)) = (
-            local_to_iso(&starts_at.get_untracked()),
-            local_to_iso(&ends_at.get_untracked()),
-        ) else {
-            error.set(Some("日時の形式が正しくありません".into()));
+        let (Some(starts), Some(ends)) = (starts, ends) else {
             return;
         };
+        let (starts, ends) = (
+            String::from(starts.to_iso_string()),
+            String::from(ends.to_iso_string()),
+        );
         loading.set(true);
         let navigate = navigate.clone();
         spawn_local(async move {
             let request = CreateEventRequest {
-                title: title.get_untracked(),
-                description: description.get_untracked(),
+                title: title_value,
+                description: description_value,
                 starts_at: starts,
                 ends_at: ends,
                 format: format.get_untracked(),
-                capacity: parse_capacity(&capacity.get_untracked()),
+                capacity: capacity_value,
             };
             let path = format!("/communities/{community_id}/events");
             match api::post::<serde_json::Value>(&path, &request).await {
                 Ok(_) => navigate(&format!("/communities/{community_id}"), Default::default()),
-                Err(_) => error.set(Some("イベントの作成に失敗しました".into())),
+                Err(e) => error.set(Some(api_error_message(
+                    e.status,
+                    &e.message,
+                    "イベントの作成に失敗しました",
+                ))),
             }
             loading.set(false);
         });
