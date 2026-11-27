@@ -30,9 +30,7 @@ pub async fn register(
     accounts: &AccountRepository,
     command: RegisterCommand,
 ) -> Result<Account, RegisterError> {
-    let duplicate = || RegisterError::DuplicateEmail {
-        email: command.email.clone(),
-    };
+    let duplicate = || RegisterError::DuplicateEmail;
 
     let existing = accounts.find_by_email(&command.email).await.map_err(|e| {
         log_internal("register.find_by_email", &e);

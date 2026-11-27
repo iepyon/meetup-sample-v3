@@ -7,7 +7,7 @@ use crate::api;
 use crate::components::{Button, Card, ErrorAlert, Input};
 use crate::types::{CreateEventRequest, EventFormat};
 use crate::utils::{
-    EventFormInput, api_error_message, format_label, parse_capacity, validate_event_form,
+    EventFormInput, api_error_message, format_label, is_uuid, parse_capacity, validate_event_form,
 };
 
 /// `datetime-local` の値（ローカル時刻）を Date にする。未入力・不正なら None。
@@ -35,7 +35,8 @@ pub fn EventCreatePage() -> impl IntoView {
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
         ev.prevent_default();
         error.set(None);
-        let Some(community_id) = params.read_untracked().get("id") else {
+        let Some(community_id) = params.read_untracked().get("id").filter(|v| is_uuid(v)) else {
+            error.set(Some("コミュニティが見つかりません".into()));
             return;
         };
         let starts = parse_local(&starts_at.get_untracked());

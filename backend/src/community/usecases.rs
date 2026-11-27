@@ -43,19 +43,18 @@ pub async fn create_community_command(
     ctx: &Ctx<'_>,
     command: CreateCommunityCommand,
 ) -> Result<(Community, CommunityMember), CreateCommunityError> {
-    let duplicate = || CreateCommunityError::DuplicateCommunityName {
-        name: command.name.clone(),
-    };
+    let duplicate = || CreateCommunityError::DuplicateCommunityName;
 
-    if ctx.communities.find_by_name(&command.name).await?.is_some() {
-        return Err(duplicate());
-    }
+    // 上限チェックを先に行う（上限到達後も名前の存在確認だけを無制限に試せないように）
     let count = ctx
         .communities
         .count_by_owner_account_id(&command.account_id)
         .await?;
     if count >= MAX_COMMUNITIES_PER_USER {
         return Err(CreateCommunityError::TooManyCommunities);
+    }
+    if ctx.communities.find_by_name(&command.name).await?.is_some() {
+        return Err(duplicate());
     }
 
     let (community, owner) = create_community(CreateInput {

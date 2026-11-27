@@ -23,7 +23,8 @@ export default defineConfig({
       timeout: 600000,
       env: {
         DATABASE_URL: "file:./e2e.db",
-        JWT_SECRET: "dev-secret",
+        // E2E 専用の固定値（32 バイト以上。本番では使わない）
+        JWT_SECRET: "e2e-only-fixed-value-not-for-production-0123",
         RATE_LIMIT_DISABLED: "true",
       },
     },

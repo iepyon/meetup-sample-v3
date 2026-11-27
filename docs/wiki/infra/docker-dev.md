@@ -29,12 +29,12 @@ verified: 5891e84
 - **同一パス bind mount**: `${MOUNT_ROOT}:${MOUNT_ROOT}` でホストと同一パスを維持し、worktree の絶対パスも解決できる
 - **named volume 4 本**（`node_modules_root` / `node_modules_e2e` / `cargo_target` / `cargo_registry`）: Linux の node_modules（E2E 用のみ）と Rust のビルド成果物 `target/`・取得済みクレートを macOS ホストから分離（`target/` は bind mount だと遅いため）。entrypoint（scripts/docker-entrypoint.sh）が `chown devuser` してから `gosu devuser` で実行
 - **UID 合わせ**: Dockerfile が `USER_UID=501 / USER_GID=20` で devuser を作成し bind mount の権限問題を回避。ベースは `node:26-bookworm` + Playwright 依存 + Rust toolchain（stable / clippy / rustfmt / `wasm32-unknown-unknown`、`/opt/rustup`・`/opt/cargo`）+ `trunk` 0.22.2 + Claude Code CLI + lefthook。Node は E2E と Claude Code CLI 用で、アプリ本体は Rust
-- ports: `BACKEND_PORT:-3000` / `FRONTEND_PORT:-5173`。env に `DATABASE_URL=file:./dev.db`、`JWT_SECRET`（既定は開発用ダミー値。backend は未設定・空だと起動時に終了）、`PLAYWRIGHT_BROWSERS_PATH`、`ANTHROPIC_API_KEY`
+- ports: `BACKEND_PORT:-3000` / `FRONTEND_PORT:-5173`。env に `DATABASE_URL=file:./dev.db`、`JWT_SECRET`（既定値なし。`.env` に 32 バイト以上を設定しないと compose がエラー。backend も 32 バイト未満なら起動時に終了）、`PLAYWRIGHT_BROWSERS_PATH`、`ANTHROPIC_API_KEY`
 
 ## WITH_CLAUDE（コンテナ内 Claude Code）
 
 - 既定では `~/.claude` を**マウントしない**（認証情報の露出回避）
-- `WITH_CLAUDE=1 d up` で `docker-compose.claude.yml` が重なり `~/.claude` をマウント（worktree では `:ro`）
+- `WITH_CLAUDE=1 d up` で `docker-compose.claude.yml` が重なり `~/.claude` を読み取り専用（`:ro`）でマウント。コンテナからホストの設定や hook を書き換えられないようにするため、main でも rw にはしない
 - **Gotcha: override はコンテナ生成時（up）のみ反映**。既存コンテナへの shell/exec には効かない
 
 ## 開発コマンドの中身

@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at    TEXT NOT NULL
 );
 
+-- ログイン・登録は lower(email) で照合するため、式インデックスで全件走査を避ける
+CREATE INDEX IF NOT EXISTS idx_accounts_email_lower ON accounts (lower(email));
+
 CREATE TABLE IF NOT EXISTS communities (
   id          TEXT NOT NULL PRIMARY KEY,
   name        TEXT NOT NULL UNIQUE,

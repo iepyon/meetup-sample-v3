@@ -10,4 +10,4 @@ pub mod event;
 pub mod infrastructure;
 pub mod shared;
 
-pub use app::{AppState, create_app};
+pub use app::{AppState, create_app, create_app_with_frontend};

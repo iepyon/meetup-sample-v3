@@ -97,4 +97,4 @@ JWT_SECRET=<32 バイト以上のランダム値> FRONTEND_DIST=frontend/dist \
   cargo run --release -p meetup-backend          # API + SPA を :3000 で配信
 ```
 
-環境変数: `JWT_SECRET`（必須・未設定なら起動しない）/ `DATABASE_URL`（既定 `file:./dev.db`）/ `PORT`（既定 3000）/ `RATE_LIMIT_DISABLED=true`（レート制限を無効化）/ `FRONTEND_DIST`（指定時のみ SPA を配信）。
+環境変数: `JWT_SECRET`（必須・32 バイト以上。未設定または短ければ起動しない。開発は `.env` に書く）/ `DATABASE_URL`（既定 `file:./dev.db`）/ `PORT`（既定 3000）/ `RATE_LIMIT_DISABLED=true`（レート制限を無効化）/ `FRONTEND_DIST`（指定時のみ SPA を配信）。

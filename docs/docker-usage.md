@@ -148,7 +148,7 @@ claude                   # Claude Code 起動（API キーまたは ~/.claude �
   - `cargo_target`（`${WORK_DIR}/target`）/ `cargo_registry`（`/opt/cargo/registry`）— Rust のビルド成果物と取得済みクレート。bind mount だと遅いため named volume に置く。
   - マウント先パスは `${WORK_DIR}` で組み立てる（main は `docker-dev.sh` が project 直下を、worktree は `docker-worktree.sh` が worktree ディレクトリを export）。
   - `~/.gitconfig:...:ro` — ホストの git 設定を読み取り専用でマウント。
-  - `~/.claude` — **既定ではマウントしない**。ホスト認証情報の露出を避けるため、コンテナ内で Claude Code を使うときだけ `WITH_CLAUDE=1` を付けて `docker-compose.claude.yml` を重ねる（main は rw、worktree は `:ro`）。マウントはコンテナ生成時にのみ反映されるので `WITH_CLAUDE=1 d up`（再生成）が必要で、既存コンテナへの `d shell`/`exec` 単独では効かない。
+  - `~/.claude` — **既定ではマウントしない**。ホスト認証情報の露出を避けるため、コンテナ内で Claude Code を使うときだけ `WITH_CLAUDE=1` を付けて `docker-compose.claude.yml` を重ねる（main・worktree とも読み取り専用 `:ro`。コンテナからホストの設定や hook を書き換えられないようにするため）。マウントはコンテナ生成時にのみ反映されるので `WITH_CLAUDE=1 d up`（再生成）が必要で、既存コンテナへの `d shell`/`exec` 単独では効かない。
 - **image**: `meetup-dev:local` — 共有イメージタグ。worktree ごとに別プロジェクトを立てても1つのビルドを再利用する（N 回ビルドを回避）。
 - **ports**: `${BACKEND_PORT:-3000}:3000`（backend）/ `${FRONTEND_PORT:-5173}:5173`（frontend）。ホスト側ポートのみ可変。コンテナ内は常に 3000 / 5173 固定なので、`frontend/Trunk.toml` の proxy・backend の `PORT`・E2E 設定は変更不要。
 - **environment**:
@@ -156,11 +156,11 @@ claude                   # Claude Code 起動（API キーまたは ~/.claude �
   | 変数 | 値 | 用途 |
   |---|---|---|
   | `DATABASE_URL` | `file:./dev.db` | SQLite の DB ファイルパス（`WORK_DIR` 直下。worktree ごとに別ファイルで自然分離。backend がなければ作成し、起動時に `schema.sql` を冪等適用する） |
-  | `JWT_SECRET` | `${JWT_SECRET:-docker-dev-secret}` | 開発用 JWT 署名鍵。既定はダミー値。`.env` で上書き可。backend は未設定・空だと起動時に終了する（fail-fast） |
+  | `JWT_SECRET` | `${JWT_SECRET:?…}`（必須・既定値なし） | JWT 署名鍵。リポジトリ直下の `.env` に 32 バイト以上のランダム値（例: `openssl rand -hex 32`）を書く。未設定なら compose 自体がエラーになり、backend も 32 バイト未満なら起動時に終了する（fail-fast） |
   | `PLAYWRIGHT_BROWSERS_PATH` | `/opt/playwright-browsers` | Playwright ブラウザの場所 |
   | `ANTHROPIC_API_KEY` | `${ANTHROPIC_API_KEY:-}` | ホストの環境変数から引き渡し（未設定なら空） |
 
-  > 既定値は開発用ダミーで秘密ではありません。上書きが必要な場合はリポジトリルートに `.env` を置くと Compose が自動ロードして展開します（`.env.example` をコピーして使う。`.env` は `.gitignore` 済み）。`JWT_SECRET` の開発用ダミーは**本番環境に絶対流用しないこと**。`ANTHROPIC_API_KEY` を設定すると `docker inspect` から平文で見える点にも留意。
+  > リポジトリルートの `.env` は Compose が自動ロードして展開します（`.env.example` をコピーして使う。`.env` は `.gitignore` 済み）。`JWT_SECRET` は既定値を持たないため、初回は `.env` を作ってから `d up` する。値を変えたら `d up` でコンテナを作り直す（既存コンテナの環境変数は更新されない）。`ANTHROPIC_API_KEY` を設定すると `docker inspect` から平文で見える点にも留意。
   >
   > backend は上記のほか `PORT`（既定 3000）・`RATE_LIMIT_DISABLED=true`（レート制限無効化。E2E の Playwright が自動起動するときに渡す）・`FRONTEND_DIST`（ビルド済み SPA を同一オリジンで配信する本番用）を読む。いずれも compose では設定しない。
 
@@ -309,7 +309,7 @@ git branch -d feature                                # ブランチ削除（マ�
 | worktree の `up` でポート衝突エラー | 同じ PR 番号 / ハッシュ slot に当たっている。`PR=<別番号>` か `BACKEND_PORT=`/`FRONTEND_PORT=` を指定して再実行 |
 | worktree で品質ゲート（lefthook）が「コンテナが起動していません」で失敗 | その worktree の `./scripts/docker-worktree.sh <name> up` を先に実行しておく |
 | worktree を削除したのに Docker のコンテナ / volume が残る | `git worktree remove` は Docker を掃除しない。削除前に `./scripts/docker-worktree.sh <name> clean` を実行する |
-| backend が `JWT_SECRET 環境変数が未設定です` で終了する | コンテナ外（ホスト直）で起動している、または空値を渡している。`d dev` 経由なら compose の既定値が入る。`.env` で空文字を設定していないか確認 |
+| `JWT_SECRET を .env に設定してください` で compose が失敗する / backend が `JWT_SECRET ...` で終了する | リポジトリ直下の `.env` に `JWT_SECRET=<openssl rand -hex 32 の出力>` を書き、`d up` でコンテナを作り直す。backend は 32 バイト未満の値でも起動しない |
 | DB を作り直したい / スキーマ変更が反映されない | `backend/src/infrastructure/schema.sql` は `CREATE TABLE IF NOT EXISTS` で冪等適用されるだけで、既存テーブルの変更（マイグレーション）は行わない。`d bash -c "rm -f dev.db"` で SQLite ファイルを削除してから backend を再起動する |
 | Playwright が「ブラウザが無い」で失敗する | `d install`（e2e で `playwright install chromium` を実行）を通す。`PLAYWRIGHT_BROWSERS_PATH` が `/opt/playwright-browsers` になっているか確認 |
 | `d e2e` の後半のテストが「コミュニティの取得に失敗しました」等で失敗する | `d dev` の backend を起動したまま実行している。`e2e/playwright.config.ts` は `reuseExistingServer: true` のため既存の 3000 / 5173 番を再利用し、Playwright が自分で起動するときにだけ渡す `RATE_LIMIT_DISABLED=true` が効かない。公開 GET の上限（60 回/分）に当たって 429 になる。`d bash -c 'pkill -f "[m]eetup-backend"; pkill -f "[t]runk serve"'` で dev サーバを止めてから `d e2e` を実行する（E2E は `cargo run -p meetup-backend` と `trunk serve` を自分で起動するため、初回は Rust のビルドで数分かかる）。パターン先頭の `[t]` `[n]` は外さない（外すと `bash -c` 自身のコマンドラインにもマッチし、最初の `pkill` がシェルごと終了して後続が実行されない） |

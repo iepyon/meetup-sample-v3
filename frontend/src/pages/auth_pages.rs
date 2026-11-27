@@ -5,6 +5,7 @@ use leptos_router::hooks::use_navigate;
 
 use crate::auth::{Auth, login, register};
 use crate::components::{Button, Card, ErrorAlert, Input};
+use crate::utils::validate_new_password;
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
@@ -71,6 +72,10 @@ pub fn RegisterPage() -> impl IntoView {
         error.set(None);
         if name.get().is_empty() || email.get().is_empty() || password.get().is_empty() {
             error.set(Some("すべてのフィールドを入力してください".into()));
+            return;
+        }
+        if let Err(message) = validate_new_password(&password.get_untracked()) {
+            error.set(Some(message.into()));
             return;
         }
         loading.set(true);

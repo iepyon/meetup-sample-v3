@@ -4,7 +4,7 @@ use gloo_net::http::{Method, RequestBuilder};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::token::get_token;
+use crate::token::{get_token, remove_token};
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -29,7 +29,8 @@ async fn request<T: DeserializeOwned>(
     let mut builder = RequestBuilder::new(path)
         .method(method)
         .header("Content-Type", "application/json");
-    if let Some(token) = get_token() {
+    let sent_token = get_token();
+    if let Some(token) = &sent_token {
         builder = builder.header("Authorization", &format!("Bearer {token}"));
     }
     let request = match body {
@@ -50,6 +51,12 @@ async fn request<T: DeserializeOwned>(
     } else {
         text.as_str()
     };
+
+    // 期限切れ・無効なトークンを残さない（以後のリクエストに付け続けないように）。
+    // 応答待ちの間に再ログインしていた場合は新しいトークンを消さない
+    if status == 401 && sent_token.is_some() && sent_token == get_token() {
+        remove_token();
+    }
 
     if response.ok() {
         serde_json::from_str(json).map_err(|_| failure(status, "レスポンスを解釈できませんでした"))

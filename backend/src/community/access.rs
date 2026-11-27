@@ -39,7 +39,8 @@ impl Repos {
     }
 }
 
-/// ロール要求: OWNER / ADMIN のみ通過（それ以外は 403）。コミュニティの存在有無も漏らさない。
+/// ロール要求: 指定ロールの ACTIVE メンバーのみ通過（それ以外は 403）。コミュニティの存在有無も漏らさない。
+/// 承認待ち（PENDING）のメンバーは、ロールにかかわらず権限を持たない。
 pub async fn require_community_role(
     repos: &Repos,
     community_id: &str,
@@ -55,7 +56,7 @@ pub async fn require_community_role(
             ApiError::internal()
         })?;
     match member {
-        Some(m) if allowed.contains(&m.role) => Ok(()),
+        Some(m) if m.has_active_role(allowed) => Ok(()),
         _ => Err(ApiError::forbidden()),
     }
 }

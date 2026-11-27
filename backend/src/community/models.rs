@@ -67,9 +67,14 @@ impl CommunityMember {
         })
     }
 
+    /// 指定ロールのいずれかを持つ ACTIVE メンバーか。承認待ち（PENDING）はロールにかかわらず権限を持たない
+    pub fn has_active_role(&self, allowed: &[MemberRole]) -> bool {
+        self.status == MemberStatus::Active && allowed.contains(&self.role)
+    }
+
     /// 承認待ち（PENDING）の参加申請を閲覧・審査できるか（ACTIVE な OWNER / ADMIN）
     pub fn can_review_applications(&self) -> bool {
-        self.status == MemberStatus::Active && MANAGER_ROLES.contains(&self.role)
+        self.has_active_role(MANAGER_ROLES)
     }
 }
 
@@ -157,9 +162,13 @@ pub fn approve_member(member: &CommunityMember) -> Result<CommunityMember, Appro
 }
 
 /// 拒否: オーナーは拒否（削除）できない（コミュニティが無主化するため）
+/// 参加申請を拒否する。対象は承認待ち（PENDING）のみ（ACTIVE メンバーの除名は別の操作として扱う）。
 pub fn reject_member(member: &CommunityMember) -> Result<(), RejectMemberError> {
     if member.role == MemberRole::Owner {
         return Err(RejectMemberError::CannotRejectOwner);
+    }
+    if member.status != MemberStatus::Pending {
+        return Err(RejectMemberError::MemberNotPending);
     }
     Ok(())
 }
@@ -244,6 +253,23 @@ mod tests {
             Err(RejectMemberError::CannotRejectOwner)
         ));
         assert!(reject_member(&member(MemberRole::Member, MemberStatus::Pending)).is_ok());
+    }
+
+    #[test]
+    fn activeなメンバーは拒否できない() {
+        for role in [MemberRole::Member, MemberRole::Admin] {
+            assert!(matches!(
+                reject_member(&member(role, MemberStatus::Active)),
+                Err(RejectMemberError::MemberNotPending)
+            ));
+        }
+    }
+
+    #[test]
+    fn pendingのメンバーは指定ロールを持っていても権限を持たない() {
+        assert!(member(MemberRole::Admin, MemberStatus::Active).has_active_role(MANAGER_ROLES));
+        assert!(!member(MemberRole::Admin, MemberStatus::Pending).has_active_role(MANAGER_ROLES));
+        assert!(!member(MemberRole::Member, MemberStatus::Active).has_active_role(MANAGER_ROLES));
     }
 
     #[test]

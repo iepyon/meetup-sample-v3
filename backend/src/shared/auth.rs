@@ -8,6 +8,23 @@ use super::error::{ApiError, ApiResult};
 /// トークン有効期限（24 時間）
 const TOKEN_EXPIRY_SECONDS: u64 = 86_400;
 
+/// HS256 の署名鍵として受け付ける最小バイト数（総当たりで鍵を推測されないよう 256 bit 以上）
+pub const JWT_SECRET_MIN_BYTES: usize = 32;
+
+/// 起動時に `JWT_SECRET` を検証する。未設定・空白のみ・短すぎる値は起動を拒否する
+/// （既知の既定値や推測しやすい値で動かさない）。
+pub fn validate_jwt_secret(value: Option<&str>) -> Result<String, String> {
+    let Some(secret) = value.filter(|v| !v.trim().is_empty()) else {
+        return Err("JWT_SECRET 環境変数が未設定です。32 バイト以上のランダム値を設定してください（例: openssl rand -hex 32）。".into());
+    };
+    if secret.len() < JWT_SECRET_MIN_BYTES {
+        return Err(format!(
+            "JWT_SECRET が {JWT_SECRET_MIN_BYTES} バイト未満です。32 バイト以上のランダム値を設定してください（例: openssl rand -hex 32）。"
+        ));
+    }
+    Ok(secret.to_string())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     #[serde(rename = "accountId")]
@@ -66,6 +83,18 @@ pub fn require_account(headers: &HeaderMap, secret: &str) -> ApiResult<String> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn jwt_secretは未設定と32バイト未満を拒否する() {
+        assert!(super::validate_jwt_secret(None).is_err());
+        assert!(super::validate_jwt_secret(Some("   ")).is_err());
+        assert!(super::validate_jwt_secret(Some(&"a".repeat(31))).is_err());
+        assert_eq!(
+            super::validate_jwt_secret(Some(&"a".repeat(32))).unwrap(),
+            "a".repeat(32)
+        );
+    }
+
     use super::*;
     use axum::http::HeaderValue;
 

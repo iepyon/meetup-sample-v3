@@ -43,7 +43,8 @@ impl AccountRepository {
     }
 
     pub async fn find_by_email(&self, email: &str) -> Result<Option<Account>, sqlx::Error> {
-        let row = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE email = ?")
+        // 小文字化前に登録された大文字混じりのアカウントもログインできるよう、DB 側も小文字で照合する
+        let row = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE lower(email) = ?")
             .bind(email)
             .fetch_optional(&self.pool)
             .await?;

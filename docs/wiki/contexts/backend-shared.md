@@ -39,7 +39,7 @@ verified: 5891e84
 
 ## 起動処理（backend/src/main.rs）
 
-`JWT_SECRET` 必須（未設定・空は終了）、`DATABASE_URL`（既定 `file:./dev.db`）、`PORT`（既定 3000）、`RATE_LIMIT_DISABLED`、`FRONTEND_DIST`（指定時はビルド済み SPA を同一オリジンで配信し、`Accept: text/html` の GET は `/docs` `/openapi.json` `/health` 以外 index.html を返す）。
+`JWT_SECRET` 必須（未設定・空・32 バイト未満は終了）、`DATABASE_URL`（既定 `file:./dev.db`）、`PORT`（既定 3000）、`RATE_LIMIT_DISABLED`、`FRONTEND_DIST`（指定時はビルド済み SPA を同一オリジンで配信し、`Accept: text/html` の GET は `/docs` `/openapi.json` `/health` 以外 index.html を返す）。
 
 ## 関連
 

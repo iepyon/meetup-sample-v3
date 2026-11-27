@@ -69,8 +69,21 @@ fn check_len(key: &str, s: &str, min: usize, max: usize) -> ApiResult<()> {
 /// bcrypt が扱える最大バイト数（これを超える入力は黙って切り捨てられるため拒否する）
 pub const BCRYPT_MAX_BYTES: usize = 72;
 
+/// 新規登録時のパスワードの最小文字数（NIST SP 800-63B の最低値）
+pub const PASSWORD_MIN_CHARS: usize = 8;
+
+/// ログイン用。既存アカウントを締め出さないよう最小長は課さない。
 pub fn required_password(obj: &JsonObject, key: &str) -> ApiResult<String> {
-    let value = required_string(obj, key, 1, usize::MAX)?;
+    password_with_min(obj, key, 1)
+}
+
+/// 新規登録用。推測されやすい短いパスワードを拒否する。
+pub fn required_new_password(obj: &JsonObject, key: &str) -> ApiResult<String> {
+    password_with_min(obj, key, PASSWORD_MIN_CHARS)
+}
+
+fn password_with_min(obj: &JsonObject, key: &str, min: usize) -> ApiResult<String> {
+    let value = required_string(obj, key, min, usize::MAX)?;
     if value.len() > BCRYPT_MAX_BYTES {
         return Err(ApiError::validation(format!(
             "request/body/{key} must NOT be longer than {BCRYPT_MAX_BYTES} bytes"
@@ -79,10 +92,15 @@ pub fn required_password(obj: &JsonObject, key: &str) -> ApiResult<String> {
     Ok(value)
 }
 
+/// メールアドレスの最大長（RFC 5321 の実質上限）
+pub const EMAIL_MAX_CHARS: usize = 254;
+
+/// メールアドレス。ASCII の大文字を小文字にそろえて返す（大文字小文字違いの重複登録を防ぎ、ログインでも同じ値で照合する）。
+/// DB 側の照合に使う SQLite の `lower()` も ASCII のみを変換するため、範囲をそろえて ASCII に限る。
 pub fn required_email(obj: &JsonObject, key: &str) -> ApiResult<String> {
-    let value = required_string(obj, key, 1, usize::MAX)?;
+    let value = required_string(obj, key, 1, EMAIL_MAX_CHARS)?;
     if is_valid_email(&value) {
-        Ok(value)
+        Ok(value.to_ascii_lowercase())
     } else {
         Err(ApiError::validation(format!(
             "request/body/{key} must match format \"email\""
@@ -339,6 +357,26 @@ mod tests {
         assert!(required_password(&obj(serde_json::json!({ "p": "a".repeat(73) })), "p").is_err());
         // 日本語は 1 文字 3 バイトなので 25 文字で 75 バイト
         assert!(required_password(&obj(serde_json::json!({ "p": "あ".repeat(25) })), "p").is_err());
+    }
+
+    #[test]
+    fn 新規登録のパスワードは8文字以上() {
+        let p = |v: &str| obj(serde_json::json!({ "p": v }));
+        assert!(required_new_password(&p("1234567"), "p").is_err());
+        assert!(required_new_password(&p("12345678"), "p").is_ok());
+        // ログインでは最小長を課さない（既存アカウントを締め出さない）
+        assert!(required_password(&p("1"), "p").is_ok());
+    }
+
+    #[test]
+    fn メールアドレスは小文字にそろえ254文字までに制限する() {
+        let e = |v: &str| obj(serde_json::json!({ "e": v }));
+        assert_eq!(
+            required_email(&e("User@Example.COM"), "e").unwrap(),
+            "user@example.com"
+        );
+        let long = format!("{}@example.com", "a".repeat(EMAIL_MAX_CHARS));
+        assert!(required_email(&e(&long), "e").is_err());
     }
 
     #[test]

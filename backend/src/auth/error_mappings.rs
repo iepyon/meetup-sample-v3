@@ -6,10 +6,11 @@ use crate::shared::error::ApiError;
 impl From<RegisterError> for ApiError {
     fn from(error: RegisterError) -> Self {
         match error {
-            RegisterError::DuplicateEmail { email } => ApiError::new(
+            // 応答にメールアドレスを含めない（ログや画面への不要な露出を避ける）
+            RegisterError::DuplicateEmail => ApiError::new(
                 StatusCode::CONFLICT,
                 "DUPLICATE_EMAIL",
-                format!("このメールアドレスは既に登録されています: {email}"),
+                "このメールアドレスは既に登録されています",
             ),
             RegisterError::Internal => ApiError::internal(),
         }

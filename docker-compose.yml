@@ -30,7 +30,8 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
     environment:
       - DATABASE_URL=file:./dev.db
-      - JWT_SECRET=${JWT_SECRET:-docker-dev-secret}
+      # 既定値は置かない（既知の値で JWT を偽造されないよう）。リポジトリ直下の .env に 32 バイト以上の値を書く
+      - "JWT_SECRET=${JWT_SECRET:?JWT_SECRET を .env に設定してください（32 バイト以上。例 openssl rand -hex 32）}"
       - PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     tty: true

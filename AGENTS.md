@@ -98,7 +98,7 @@ Playwright tests covering full user flows (auth, community, member, event). Conf
 
 ## Security
 
-- 認証: `shared/auth.rs` の `require_account`（認証必須・401）と `optional_account`（認証任意）を適切に使い分ける。JWT は HS256・24 時間有効。`JWT_SECRET` 未設定なら起動しない（既定値へのフォールバック禁止）
+- 認証: `shared/auth.rs` の `require_account`（認証必須・401）と `optional_account`（認証任意）を適切に使い分ける。JWT は HS256・24 時間有効。`JWT_SECRET` が未設定または 32 バイト未満なら起動しない（既定値へのフォールバック禁止。compose も既定値を持たず `.env` 必須）
 - 入力検証: `shared/validation.rs` で全 API エンドポイントを検証する
 - SQL は sqlx の **バインドパラメータのみ**（文字列連結禁止。SQL インジェクション防止）
 - エラーレスポンスにスタックトレースや DB エラー詳細を含めない（`Internal` は 500 + 固定文言。ログには種別のみ）
@@ -114,6 +114,7 @@ Playwright tests covering full user flows (auth, community, member, event). Conf
 - コミュニティ一覧は未ログイン時 PUBLIC のみ返す（旧 TS 実装は repository が visibility 条件を無視しており非公開も返していた。Rust 版で意図どおりに修正）
 - インメモリ SQLite は接続ごとに別 DB になるため、`:memory:` では接続プールを 1 本に固定している
 - `trunk` / `cargo` の初回ビルドは数分かかる。E2E の `webServer` タイムアウトは 600 秒
+- prettier は `e2e` の devDependencies で版を固定し、lefthook / hook は `npx --no-install prettier` で呼ぶ。既存のコンテナで pre-commit の prettier が失敗したら `d install` で入れ直す
 
 ## Context Management
 

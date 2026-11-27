@@ -9,6 +9,7 @@ use crate::types::{
     CommunityEvent, CommunityMember, CommunityResponse, ListEventsResponse, ListMembersResponse,
     MemberStatus, Role,
 };
+use crate::utils::is_uuid;
 
 /// メンバーカード（OWNER には承認待ち（PENDING）の申請者にだけ承認/拒否ボタンを出す）
 #[component]
@@ -71,7 +72,14 @@ pub fn CommunityDetailPage() -> impl IntoView {
     // :id が連続で変わったとき、古い id のレスポンスで状態を上書きしないための世代番号
     let generation = RwSignal::new(0_u32);
 
-    let id = move || params.read().get("id").unwrap_or_default();
+    // UUID 以外の :id は API パスに埋め込まない（空文字として「見つからない」扱いにする）
+    let id = move || {
+        params
+            .read()
+            .get("id")
+            .filter(|v| is_uuid(v))
+            .unwrap_or_default()
+    };
 
     let load_members = move |id: String| {
         members_loading.set(true);
@@ -87,10 +95,15 @@ pub fn CommunityDetailPage() -> impl IntoView {
 
     Effect::new(move |_| {
         let id = id();
+        // 世代を進めて、前の id の応答が後から届いても状態を上書きさせない
+        generation.update_untracked(|g| *g += 1);
         if id.is_empty() {
+            community.set(None);
+            members.set(Vec::new());
+            events.set(Vec::new());
+            community_loading.set(false);
             return;
         }
-        generation.update_untracked(|g| *g += 1);
         let current = generation.get_untracked();
         community_loading.set(true);
         community_error.set(None);

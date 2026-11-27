@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub enum RegisterError {
-    DuplicateEmail { email: String },
+    DuplicateEmail,
     Internal,
 }
 

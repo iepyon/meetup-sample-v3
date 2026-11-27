@@ -11,7 +11,9 @@ use super::usecases::{
 use crate::app::AppState;
 use crate::shared::auth::{generate_token, require_account};
 use crate::shared::error::{ApiError, ApiResult, log_internal};
-use crate::shared::validation::{json_object, required_email, required_password, required_string};
+use crate::shared::validation::{
+    json_object, required_email, required_new_password, required_password, required_string,
+};
 
 /// POST /auth/register - アカウント登録
 pub async fn register(
@@ -24,7 +26,7 @@ pub async fn register(
         created_at: chrono::Utc::now(),
         name: required_string(&obj, "name", 1, 100)?,
         email: required_email(&obj, "email")?,
-        password: required_password(&obj, "password")?,
+        password: required_new_password(&obj, "password")?,
     };
 
     let accounts = AccountRepository::new(state.pool.clone());

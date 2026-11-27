@@ -34,7 +34,7 @@ verified: 5891e84
 
 ## JWT（backend/src/shared/auth.rs）
 
-`generate_token(account_id, secret)` — HS256、有効期限 24 時間、claims は `accountId` / `iat` / `exp`（旧実装と互換）。署名鍵は `main.rs` が起動時に環境変数 `JWT_SECRET` から読み、未設定・空なら終了する（既定値へのフォールバックなし）。`AppState.jwt_secret` 経由で controller に渡る。
+`generate_token(account_id, secret)` — HS256、有効期限 24 時間、claims は `accountId` / `iat` / `exp`（旧実装と互換）。署名鍵は `main.rs` が起動時に環境変数 `JWT_SECRET` を `validate_jwt_secret` で検証して読み、未設定・空・32 バイト未満なら終了する（既定値へのフォールバックなし）。`AppState.jwt_secret` 経由で controller に渡る。
 
 ## 連携・特記
 

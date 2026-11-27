@@ -42,6 +42,28 @@ pub fn parse_capacity(input: &str) -> i64 {
     input.trim().parse().unwrap_or(0)
 }
 
+/// UUID（8-4-4-4-12 の 16 進）か。URL の `:id` を API パスへ埋め込む前に検証する
+/// （デコード済みの `../` などで別の API パスへリクエストを向けられないように）。
+pub fn is_uuid(value: &str) -> bool {
+    let parts: Vec<&str> = value.split('-').collect();
+    parts.len() == 5
+        && parts
+            .iter()
+            .zip([8, 4, 4, 4, 12])
+            .all(|(p, len)| p.len() == len && p.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
+/// 新規登録時のパスワードの最小文字数（backend の `PASSWORD_MIN_CHARS` と揃える）
+pub const PASSWORD_MIN_CHARS: usize = 8;
+
+/// 新規登録のパスワードを送信前に検査する
+pub fn validate_new_password(password: &str) -> Result<(), &'static str> {
+    if password.chars().count() < PASSWORD_MIN_CHARS {
+        return Err("パスワードは8文字以上で入力してください");
+    }
+    Ok(())
+}
+
 /// イベント作成フォームの入力。日時は UNIX エポックからのミリ秒（未入力・不正なら `None`）
 pub struct EventFormInput<'a> {
     pub title: &'a str,
@@ -265,6 +287,24 @@ mod tests {
             api_error_message(403, "", "失敗"),
             "この操作を行う権限がありません"
         );
+    }
+
+    #[test]
+    fn uuid形式だけを受け付ける() {
+        assert!(is_uuid("0f8fad5b-d9cb-469f-a165-70867728950e"));
+        assert!(!is_uuid(""));
+        assert!(!is_uuid("x/../../auth/me?"));
+        assert!(!is_uuid("0f8fad5b-d9cb-469f-a165-70867728950"));
+        assert!(!is_uuid("0f8fad5b-d9cb-469f-a165-70867728950g"));
+    }
+
+    #[test]
+    fn 新規登録のパスワードは8文字以上を求める() {
+        assert_eq!(
+            validate_new_password("1234567"),
+            Err("パスワードは8文字以上で入力してください")
+        );
+        assert!(validate_new_password("12345678").is_ok());
     }
 
     #[test]

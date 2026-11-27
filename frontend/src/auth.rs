@@ -7,6 +7,7 @@ use serde::Serialize;
 use crate::api;
 use crate::token::{get_token, remove_token, set_token};
 use crate::types::{Account, AccountResponse, AuthResponse};
+use crate::utils::api_error_message;
 
 #[derive(Clone, Copy)]
 pub struct Auth {
@@ -70,7 +71,7 @@ pub async fn register(auth: Auth, name: &str, email: &str, password: &str) -> Re
     )
     .await
     .map(|res| accept(auth, res))
-    .map_err(|_| "登録に失敗しました".to_string())
+    .map_err(|e| api_error_message(e.status, &e.message, "登録に失敗しました"))
 }
 
 pub fn logout(auth: Auth) {

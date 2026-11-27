@@ -8,7 +8,7 @@ use crate::shared::error::log_internal;
 
 #[derive(Debug)]
 pub enum CreateCommunityError {
-    DuplicateCommunityName { name: String },
+    DuplicateCommunityName,
     TooManyCommunities,
     Internal,
 }
@@ -47,6 +47,7 @@ pub enum RejectMemberError {
     CommunityNotFound,
     MemberNotFound,
     CannotRejectOwner,
+    MemberNotPending,
     Internal,
 }
 

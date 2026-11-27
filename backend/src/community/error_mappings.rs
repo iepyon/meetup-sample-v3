@@ -26,10 +26,10 @@ fn member_not_found() -> ApiError {
 impl From<CreateCommunityError> for ApiError {
     fn from(error: CreateCommunityError) -> Self {
         match error {
-            CreateCommunityError::DuplicateCommunityName { name } => ApiError::new(
+            CreateCommunityError::DuplicateCommunityName => ApiError::new(
                 StatusCode::CONFLICT,
                 "DUPLICATE_COMMUNITY_NAME",
-                format!("このコミュニティ名は既に使用されています: {name}"),
+                "このコミュニティ名は既に使用されています",
             ),
             CreateCommunityError::TooManyCommunities => ApiError::new(
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -103,6 +103,11 @@ impl From<RejectMemberError> for ApiError {
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "CANNOT_REJECT_OWNER",
                 "オーナーは拒否できません",
+            ),
+            RejectMemberError::MemberNotPending => ApiError::new(
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "MEMBER_NOT_PENDING",
+                "承認待ちのメンバーのみ拒否できます",
             ),
             RejectMemberError::Internal => ApiError::internal(),
         }
