@@ -1,14 +1,15 @@
-//! 統合テストの共通ヘルパー（テストごとにインメモリ SQLite のアプリを作り、oneshot で呼ぶ）
-#![allow(dead_code)]
+//! 統合テストの共通ヘルパー（テストごとにインメモリ SQLite のアプリを作り、oneshot で呼ぶ）。
+//! 各モジュールは `use crate::common::*;` でヘルパーとよく使う型をまとめて読み込む
+#![allow(dead_code, unused_imports)]
 
-use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use http_body_util::BodyExt;
-use meetup_backend::infrastructure::connect;
-use meetup_backend::{AppState, create_app};
-use serde_json::{Value, json};
-use tower::ServiceExt;
+pub use axum::Router;
+pub use axum::body::Body;
+pub use axum::http::{Request, StatusCode};
+pub use http_body_util::BodyExt;
+pub use meetup_backend::infrastructure::connect;
+pub use meetup_backend::{AppState, create_app};
+pub use serde_json::{Value, json};
+pub use tower::ServiceExt;
 
 pub const SECRET: &str = "test-secret";
 
@@ -95,4 +96,9 @@ pub fn event_body(starts_in_hours: i64, ends_in_hours: i64) -> Value {
         "format": "ONLINE",
         "capacity": 50,
     })
+}
+
+/// レスポンスをそのまま返す（ヘッダや本文の形式を検証するテスト用）
+pub async fn raw(app: &Router, req: Request<Body>) -> axum::response::Response {
+    app.clone().oneshot(req).await.unwrap()
 }
