@@ -26,4 +26,5 @@ jsonwebtoken = "9"
 bcrypt = "0.17"
 
 [dev-dependencies]
+meetup-test-macros = { path = "../test-macros" }
 http-body-util = "0.1"

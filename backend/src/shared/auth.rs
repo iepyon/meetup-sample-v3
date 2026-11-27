@@ -84,19 +84,9 @@ pub fn require_account(headers: &HeaderMap, secret: &str) -> ApiResult<String> {
 #[cfg(test)]
 mod tests {
 
-    #[test]
-    fn jwt_secretは未設定と32バイト未満を拒否する() {
-        assert!(super::validate_jwt_secret(None).is_err());
-        assert!(super::validate_jwt_secret(Some("   ")).is_err());
-        assert!(super::validate_jwt_secret(Some(&"a".repeat(31))).is_err());
-        assert_eq!(
-            super::validate_jwt_secret(Some(&"a".repeat(32))).unwrap(),
-            "a".repeat(32)
-        );
-    }
-
     use super::*;
     use axum::http::HeaderValue;
+    use meetup_test_macros::describe;
 
     const SECRET: &str = "unit-secret";
 
@@ -115,61 +105,78 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
-    fn 有効なトークンからaccount_idを取り出せる() {
-        let token = generate_token("acc-1", SECRET).unwrap();
-        assert_eq!(
-            optional_account(&headers(&format!("Bearer {token}")), SECRET).as_deref(),
-            Some("acc-1")
+    describe!("JWT 認証", {
+        test!(
+            "JWT_SECRET は未設定と 32 バイト未満を拒否する",
+            {
+                assert!(super::validate_jwt_secret(None).is_err());
+                assert!(super::validate_jwt_secret(Some("   ")).is_err());
+                assert!(super::validate_jwt_secret(Some(&"a".repeat(31))).is_err());
+                assert_eq!(
+                    super::validate_jwt_secret(Some(&"a".repeat(32))).unwrap(),
+                    "a".repeat(32)
+                );
+            }
         );
-    }
 
-    #[test]
-    fn 期限切れのトークンは無効() {
-        let past = now_seconds() - 10;
-        let token = encode_claims(
-            &serde_json::json!({ "accountId": "a", "iat": past - 100, "exp": past }),
-            Algorithm::HS256,
-            SECRET,
+        test!(
+            "有効なトークンから account_id を取り出せる",
+            {
+                let token = generate_token("acc-1", SECRET).unwrap();
+                assert_eq!(
+                    optional_account(&headers(&format!("Bearer {token}")), SECRET).as_deref(),
+                    Some("acc-1")
+                );
+            }
         );
-        assert!(optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none());
-    }
 
-    #[test]
-    fn 別のsecretで署名されたトークンは無効() {
-        let token = generate_token("a", "other-secret").unwrap();
-        assert!(optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none());
-    }
-
-    #[test]
-    fn alg違いのトークンは無効() {
-        let exp = now_seconds() + 1000;
-        let token = encode_claims(
-            &serde_json::json!({ "accountId": "a", "iat": 0, "exp": exp }),
-            Algorithm::HS384,
-            SECRET,
-        );
-        assert!(optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none());
-    }
-
-    #[test]
-    fn account_idが無い_または数値のトークンは無効() {
-        let exp = now_seconds() + 1000;
-        for claims in [
-            serde_json::json!({ "iat": 0, "exp": exp }),
-            serde_json::json!({ "accountId": 1, "iat": 0, "exp": exp }),
-        ] {
-            let token = encode_claims(&claims, Algorithm::HS256, SECRET);
+        test!("期限切れのトークンは無効", {
+            let past = now_seconds() - 10;
+            let token = encode_claims(
+                &serde_json::json!({ "accountId": "a", "iat": past - 100, "exp": past }),
+                Algorithm::HS256,
+                SECRET,
+            );
             assert!(optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none());
-        }
-    }
+        });
 
-    #[test]
-    fn bearer形式でないヘッダは無効() {
-        let token = generate_token("a", SECRET).unwrap();
-        assert!(optional_account(&headers(&token), SECRET).is_none());
-        assert!(optional_account(&headers(&format!("Basic {token}")), SECRET).is_none());
-        assert!(optional_account(&HeaderMap::new(), SECRET).is_none());
-        assert!(require_account(&HeaderMap::new(), SECRET).is_err());
-    }
+        test!("別の secret で署名されたトークンは無効", {
+            let token = generate_token("a", "other-secret").unwrap();
+            assert!(optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none());
+        });
+
+        test!("alg 違いのトークンは無効", {
+            let exp = now_seconds() + 1000;
+            let token = encode_claims(
+                &serde_json::json!({ "accountId": "a", "iat": 0, "exp": exp }),
+                Algorithm::HS384,
+                SECRET,
+            );
+            assert!(optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none());
+        });
+
+        test!(
+            "account_id が無い、または数値のトークンは無効",
+            {
+                let exp = now_seconds() + 1000;
+                for claims in [
+                    serde_json::json!({ "iat": 0, "exp": exp }),
+                    serde_json::json!({ "accountId": 1, "iat": 0, "exp": exp }),
+                ] {
+                    let token = encode_claims(&claims, Algorithm::HS256, SECRET);
+                    assert!(
+                        optional_account(&headers(&format!("Bearer {token}")), SECRET).is_none()
+                    );
+                }
+            }
+        );
+
+        test!("Bearer 形式でないヘッダは無効", {
+            let token = generate_token("a", SECRET).unwrap();
+            assert!(optional_account(&headers(&token), SECRET).is_none());
+            assert!(optional_account(&headers(&format!("Basic {token}")), SECRET).is_none());
+            assert!(optional_account(&HeaderMap::new(), SECRET).is_none());
+            assert!(require_account(&HeaderMap::new(), SECRET).is_err());
+        });
+    });
 }

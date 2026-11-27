@@ -1,0 +1,18 @@
+[package]
+name = "meetup-test-macros"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "describe! / test! macros: write test names as strings (Jest-style) on top of libtest"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }
+unicode-ident = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
