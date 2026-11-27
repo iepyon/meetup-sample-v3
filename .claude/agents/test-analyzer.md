@@ -17,18 +17,18 @@ tools: Read, Grep, Glob, Bash
 ## チェック項目
 
 ### カバレッジ
-- backend: カバレッジ 80% 以上を満たすか（`cargo llvm-cov` が導入されていれば `d bash -c "cargo llvm-cov -p meetup-backend"` で確認可）。HTTP 統合テスト（`backend/tests/` の `api.rs` = 業務 API / `system.rs` = 横断的な挙動 / `security.rs` = セキュリティ）がエンドポイントごとの正常系・異常系（400/401/403/404/409/422）と可視性を網羅しているか
+- backend: カバレッジ 80% 以上を満たすか（`cargo llvm-cov` が導入されていれば `d bash -c "cargo llvm-cov -p meetup-backend"` で確認可）。HTTP 統合テスト（`backend/tests/` の `api.rs` / `api_members.rs` = 業務 API / `system.rs` = 横断的な挙動 / `security.rs` = セキュリティ）がエンドポイントごとの正常系・異常系（400/401/403/404/409/422）と可視性を網羅しているか
 - frontend: 純粋関数（`utils.rs`）は単体テストで、UI は Rust の E2E（`e2e/`）でカバーする前提（ページ/コンポーネントの単体テストは書かない）
 - カバレッジ閾値を満たすためだけの「意味のないテスト」になっていないか
 
 ### 命名・構造
-- テストが `describe!` / `test!`（`meetup-test-macros`）で書かれ、名前が**日本語の文字列**か。`describe!` の入れ子が観点ごとのまとまりになっているか（`docs/conventions/testing.md` の Test naming）
+- テストが規約の書き方（`tests/` 配下は `meetup-test-runner` の `describe` / `test`、`src` 内は `meetup-test-macros` の `describe!` / `test!`）で、名前が**日本語の文字列**か。`describe` の入れ子が観点ごとのまとまりになっているか（`docs/conventions/testing.md` の Test naming）
 - **受け入れ基準マッピング**: issue の各受け入れ基準がテスト名と 1:1 で対応しているか。抜けている基準がないか
 
 ### テスト分離
 - backend 統合テスト: テストごとに `connect("sqlite::memory:")` で分離された SQLite を作っているか。テスト間で状態が漏れていないか
 - E2E: 各テストが `E2e::start()` から始まり（テストごとにサーバ・DB・ブラウザが別）、他テストの状態に依存していないか。最後に `page.close().await` を呼んでいるか
-- テストの配置が規約通りか（backend の単体はモジュール内の `#[cfg(test)] mod tests`、HTTP 統合は `backend/tests/*.rs`、frontend の純粋関数は `frontend/src/utils.rs`、E2E は `e2e/tests/*.rs` で `#[ignore]` 付き）
+- テストの配置が規約通りか（backend の単体はモジュール内の `#[cfg(test)] mod tests`、HTTP 統合は `backend/tests/*.rs`、frontend の純粋関数は `frontend/src/utils.rs`、E2E は `e2e/tests/*.rs` で ignore 指定付き。`tests/` 配下のファイルは `Cargo.toml` に `harness = false` の `[[test]]` があるか）
 
 ### テストダブルの適切性
 - このリポジトリはモックを使わず実物で検証する（backend はインメモリ SQLite + `create_app` を `oneshot` で直接呼ぶ、E2E は同一プロセスのサーバ + 実ブラウザ）。新たにモック / スタブを持ち込む場合は、実物で検証できない理由があるか

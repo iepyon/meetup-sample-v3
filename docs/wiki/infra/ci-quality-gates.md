@@ -25,7 +25,7 @@ verified: 5891e84
 
 - トリガー: push(main, `paths-ignore: **.md, docs/**`) と PR。`concurrency` で古い実行を自動キャンセル
 - **quality ジョブ**（20 分, `dtolnay/rust-toolchain@stable` + `Swatinem/rust-cache`）: `cargo fmt --all -- --check` → `cargo clippy --workspace --all-targets -- -D warnings`（backend + native）→ `cargo clippy -p meetup-frontend --target wasm32-unknown-unknown -- -D warnings`（frontend）→ `cargo test --workspace --locked`（backend 単体・HTTP 統合 + frontend 純粋関数）
-- **e2e ジョブ**（PR のみ = private 無料枠節約, 30 分）: Rust（wasm32 ターゲット）+ `trunk` 0.22.2 インストール → `frontend/` で `trunk build --dist ../target/e2e-dist` → `cargo test -p meetup-e2e --locked -- --ignored`（`CHROME=/usr/bin/google-chrome` でランナーにプリインストールの Chrome を使う）。backend はテストごとに同一プロセスで起動するため、サーバの事前起動は不要。Node / npm は使わない。E2E は `#[ignore]` 付きなので quality ジョブの `cargo test --workspace` では走らない
+- **e2e ジョブ**（PR のみ = private 無料枠節約, 30 分）: Rust（wasm32 ターゲット）+ `trunk` 0.22.2 インストール → `frontend/` で `trunk build --dist ../target/e2e-dist` → `cargo test -p meetup-e2e --locked -- --ignored`（`CHROME=/usr/bin/google-chrome` でランナーにプリインストールの Chrome を使う）。backend はテストごとに同一プロセスで起動するため、サーバの事前起動は不要。Node / npm は使わない。E2E は ignore 指定付き（`meetup-test-runner` の `.ignore()`）なので quality ジョブの `cargo test --workspace` では走らない
 
 ## `d review` の中身（scripts/docker-dev.sh の `review`）
 
