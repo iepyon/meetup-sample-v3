@@ -1,0 +1,19 @@
+[package]
+name = "meetup-e2e"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Browser E2E tests for the Meetup app (chromiumoxide / Chrome DevTools Protocol)"
+
+# テスト支援専用のクレート。backend を同一プロセスで起動し、ヘッドレス Chromium で SPA を操作する。
+# テストは #[ignore] 付き（cargo test --workspace では実行しない）。実行は `d e2e`。
+
+[dependencies]
+meetup-backend = { path = "../backend" }
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
+chromiumoxide = "0.9"
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"

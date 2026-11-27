@@ -9,7 +9,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # MOUNT_ROOT はホストと同一パスで bind するメインプロジェクトディレクトリ。
 # worktree は ${PROJECT_DIR}/.worktrees/ 配下にネストするため、これだけで足りる。
 export MOUNT_ROOT="$PROJECT_DIR"
-# WORK_DIR は compose の working_dir / node_modules マウント先。main はプロジェクト直下
+# WORK_DIR は compose の working_dir / cargo target マウント先。main はプロジェクト直下
 export WORK_DIR="$PROJECT_DIR"
 
 # compose ファイルを絶対パスで固定（cwd 非依存。ルートの .env も自動ロードされる）。
@@ -34,10 +34,9 @@ case "${1:-shell}" in
     $COMPOSE down
     ;;
   install)
-    # アプリ本体は Rust。npm は E2E (Playwright) 専用
+    # 依存はすべて cargo（npm は使わない）。git pre-commit（lefthook）もここで有効化する
     $EXEC dev cargo fetch --locked
-    $EXEC dev npm install
-    $EXEC -w "$PROJECT_DIR/e2e" dev npx playwright install chromium
+    $EXEC dev lefthook install
     ;;
   test)
     $EXEC dev cargo test --workspace
@@ -71,7 +70,10 @@ case "${1:-shell}" in
     echo "Frontend: http://localhost:5173"
     ;;
   e2e)
-    $EXEC -w "$PROJECT_DIR/e2e" dev npm test
+    # SPA を E2E 専用の出力先にビルドし（d dev の trunk serve が使う frontend/dist とは分ける）、
+    # backend を同一プロセス・空きポートで起動する Rust 製 E2E（e2e/）を実行する
+    $EXEC -w "$PROJECT_DIR/frontend" dev trunk build --dist ../target/e2e-dist
+    $EXEC dev cargo test -p meetup-e2e "${@:2}" -- --ignored
     ;;
   shell)
     $EXEC dev bash

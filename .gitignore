@@ -4,9 +4,6 @@ target/
 # Build outputs (trunk)
 dist/
 
-# Dependencies (E2E 用 npm のみ)
-node_modules/
-
 # Environment（実シークレットは置かない。共有するのは .env.example のみ）
 .env
 .env.*
@@ -27,15 +24,11 @@ credentials*.json
 *.db-wal
 *.db-journal
 
-# Test / E2E outputs
+# Test outputs
 coverage/
-test-results/
-playwright-report/
-blob-report/
 
 # Logs
 *.log
-npm-debug.log*
 
 # IDE
 .vscode/

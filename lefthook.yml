@@ -10,7 +10,3 @@ pre-commit:
     rust-tests:
       glob: "**/*.rs"
       run: ./scripts/run-quality.sh "cargo test --workspace"
-    e2e-prettier:
-      glob: "e2e/**/*.{ts,json}"
-      # ファイル名は引用符で囲まず、lefthook のエスケープのまま引数配列で渡す（シェルで再評価させない）
-      run: ./scripts/run-quality.sh npx --no-install prettier --check -- {staged_files}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run each git worktree as an INDEPENDENT Docker Compose project with its own
-# container, network, node_modules volumes, and host ports — so main and any
+# container, network, cargo target volume, and host ports — so main and any
 # number of worktrees can run their dev servers simultaneously.
 # Usage: ./scripts/docker-worktree.sh <worktree-name> [command]
 #
@@ -91,7 +91,7 @@ case "${COMMAND}" in
     $COMPOSE down
     ;;
   clean)
-    # コンテナ + このworktree専用の volume（node_modules / cargo target）を削除
+    # コンテナ + このworktree専用の volume（cargo target）を削除
     $COMPOSE down -v
     ;;
   ports)
@@ -100,8 +100,8 @@ case "${COMMAND}" in
   install)
     require_running
     $EXEC dev cargo fetch --locked
-    $EXEC dev npm install
-    $EXEC dev bash -c "cd e2e && npx playwright install chromium"
+    # git pre-commit（lefthook）を有効化する（worktree ごとに必要）
+    $EXEC dev lefthook install
     ;;
   dev)
     require_running
@@ -113,6 +113,12 @@ case "${COMMAND}" in
   test)
     require_running
     $EXEC dev cargo test --workspace
+    ;;
+  e2e)
+    # E2E はテストごとに空きポートでサーバを立てるため、main や他の worktree と同時に実行できる
+    require_running
+    $COMPOSE exec -u devuser -w "${WORKTREE_DIR}/frontend" dev trunk build --dist ../target/e2e-dist
+    $EXEC dev cargo test -p meetup-e2e "${@:3}" -- --ignored
     ;;
   lint)
     require_running
