@@ -89,7 +89,7 @@ d bash -c "cd frontend && trunk build --release"             # frontend の本�
 ```bash
 # テスト
 cargo test --workspace
-cargo test -p meetup-backend           # backend のみ（単体 + tests/api.rs）
+cargo test -p meetup-backend           # backend のみ（単体 + tests/api/ の統合テスト）
 cargo test -p meetup-frontend          # frontend の純粋関数テスト
 
 # Lint（警告=エラー）
@@ -239,7 +239,7 @@ d bash -c "rm -f dev.db"                                    # 開発 DB を作�
 単一テストの実行（テスト名の部分一致）:
 
 ```bash
-d bash -c "cargo test -p meetup-backend --test api 同名コミュニティ"     # backend/tests/api.rs
+d bash -c "cargo test -p meetup-backend --test api community::"       # backend/tests/api/community.rs
 d bash -c "cargo test -p meetup-backend 公開_GET_パス"                  # src 内の単体テスト（名前は describe!/test! の文字列を識別子にしたもの）
 d bash -c "cargo test -p meetup-frontend カテゴリ"                      # frontend/src/utils.rs
 ```

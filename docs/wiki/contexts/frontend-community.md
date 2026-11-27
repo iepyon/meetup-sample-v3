@@ -33,7 +33,7 @@ verified: 5891e84
 
 - `components/mod.rs` — `Card` / `Button`（`Variant::Primary` / `Danger`）/ `Input` / `ErrorAlert` / `CategoryBadge` / `VisibilityBadge` / `Layout`
 - `types.rs` — `api_enum!` マクロで定義した `Category` / `Visibility` / `Role` / `MemberStatus` / `EventFormat` / `EventStatus`（`as_str` / `parse` / `ALL`）と `Community` / `CommunityMember` / `CommunityEvent`、Request/Response 型（サーバーの camelCase に対応する手書き）
-- `utils.rs` — ラベル変換（`category_label` / `visibility_label` / `format_label`）・`filter_by_category`・`parse_capacity`。ブラウザ API に依存しない純粋関数で、ネイティブの `cargo test -p meetup-frontend` で検証する（単体テストはここと `types.rs` だけ）
+- `utils.rs` — ラベル変換（`category_label` / `visibility_label` / `format_label`）・`filter_by_category`・`parse_capacity`。ブラウザ API に依存しない純粋関数で、ネイティブの `cargo test -p meetup-frontend` で検証する（単体テストは `utils/tests.rs` と `types/tests.rs` だけ）
 - データ取得は各ページが `api::get` / `post` / … を `spawn_local` 内で呼ぶ（フック層は無い）
 
 ## dev proxy（frontend/Trunk.toml）

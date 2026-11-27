@@ -1,13 +1,13 @@
 # Testing Conventions
 
 ## Backend
-- 単体テスト: 対象モジュール内の `#[cfg(test)] mod tests`（`models.rs` の遷移関数、`shared/validation.rs` など純粋ロジック）
-- HTTP 統合テスト: `backend/tests/`（`api.rs` = 業務 API / `system.rs` = 横断的な挙動 / `security.rs` = セキュリティ。共通ヘルパーは `common/mod.rs`）。ファイル上限（800 行）を超えそうなら観点ごとにファイルを分ける。`connect("sqlite::memory:")` でテストごとに分離した SQLite を作り、`create_app(AppState::new(pool, secret), false)` を `tower::ServiceExt::oneshot` で直接呼ぶ
+- 単体テスト: 対象モジュールの `#[cfg(test)] mod tests`（`models.rs` の遷移関数、`shared/validation.rs` など純粋ロジック）。テストが 60 行を超えたら `<モジュール>/tests.rs` に出して `#[cfg(test)] mod tests;` で読む（例: `shared/validation/tests.rs`）。短いものはモジュール内に書いてよい
+- HTTP 統合テスト: `backend/tests/api/`。テストのバイナリを 1 つにまとめ（リンクを 1 回で済ませる）、観点ごとにモジュールを分ける: `main.rs`（mod 宣言）/ `auth.rs`（認証）/ `community.rs`（コミュニティ）/ `member.rs`（参加・脱退・ロール）/ `member_review.rs`（参加申請の審査）/ `member_list.rs`（メンバー一覧）/ `event.rs`（イベント）/ `http.rs`（404・405・413・415・セキュリティヘッダ・OpenAPI）/ `rate_limit.rs`（レート制限・Cache-Control）/ `spa.rs`（本番構成の SPA 配信）。共通ヘルパーは `common.rs`。各モジュールは `use crate::common::*;` でヘルパーとよく使う型をまとめて読む。新しい観点は `main.rs` に `mod` を足す。ファイルが 400 行を超えそうならさらに分ける。絞り込みは `cargo test -p meetup-backend --test api member::`。`connect("sqlite::memory:")` でテストごとに分離した SQLite を作り、`create_app(AppState::new(pool, secret), false)` を `tower::ServiceExt::oneshot` で直接呼ぶ
 - エンドポイントごとに正常系・異常系（400/401/403/404/409/422）と可視性（PRIVATE の 404、DRAFT は作成者のみ等）を検証する
 - カバレッジ目標: 80% 以上（`cargo llvm-cov` を導入している場合）
 
 ## Frontend
-- 純粋関数（`frontend/src/utils.rs`）は `#[cfg(test)]` の単体テスト（ネイティブで `cargo test -p meetup-frontend`）
+- 純粋関数（`frontend/src/utils.rs`）と DTO（`types.rs`）は単体テスト（`utils/tests.rs` / `types/tests.rs`。ネイティブで `cargo test -p meetup-frontend`）
 - ページ・コンポーネントの単体テストは書かない — 純粋関数テスト + E2E でカバーする
 
 ## E2E
