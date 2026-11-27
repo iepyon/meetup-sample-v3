@@ -34,7 +34,7 @@ verified: 5891e84
 - `limits_and_cache`（`from_fn_with_state`）— IP ベース・固定ウィンドウ（60 秒）のレート制限と `Cache-Control` 付与。全体 300 回/分、**未ログイン到達可能な公開 GET**（`/communities`・`/communities/{id}`・`…/members`・`…/events`）は別枠で 60 回/分。超過は 429 `TOO_MANY_REQUESTS`。`X-Forwarded-For` は末尾（リバースプロキシ 1 段信頼）を採用。`Cache-Control` は既定 `private, no-store`、認証ヘッダなしの公開 GET のみ `public, max-age=30, stale-while-revalidate=60`
 - `normalize_errors` — axum 標準の本文なしエラー（400 / 405 / 413 / 415）を `{ code, message }` に揃える
 - `fallback` — 未定義パスを 404 `NOT_FOUND` にする
-- リクエストボディ上限は `DefaultBodyLimit`（100 KiB）。`create_app(state, rate_limit_enabled)` に `false` を渡すとレート制限が無効になる（統合テスト・E2E 用。E2E は環境変数 `RATE_LIMIT_DISABLED=true`）
+- リクエストボディ上限は `DefaultBodyLimit`（100 KiB）。`create_app(state, rate_limit_enabled)` に `false` を渡すとレート制限が無効になる（統合テスト・E2E 用。E2E は `e2e/src/server.rs` が `create_app_with_frontend` に `false` を直接渡す。本番バイナリの環境変数 `RATE_LIMIT_DISABLED` は E2E では使わなくなった）
 - 認可（OWNER / ADMIN）は middleware ではなく community の controller 関数 `require_community_role`（[community (backend)](backend-community.md)）
 
 ## 起動処理（backend/src/main.rs）

@@ -39,6 +39,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # Cargo.lock と食い違う依存解決を最初に止める（後続の --locked 無しのコマンドに lock を書き換えさせない）
+      - name: Fetch dependencies (locked)
+        run: cargo fetch --locked
+
       - name: Format
         run: cargo fmt --all -- --check
 
@@ -69,6 +73,10 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
+
+      # Cargo.lock と食い違う依存解決を最初に止める（後続の --locked 無しのコマンドに lock を書き換えさせない）
+      - name: Fetch dependencies (locked)
+        run: cargo fetch --locked
 
       - name: Install trunk
         run: cargo install trunk --locked --version 0.22.2
