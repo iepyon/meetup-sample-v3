@@ -2,7 +2,7 @@
 
 ## Backend
 - 単体テスト: 対象モジュール内の `#[cfg(test)] mod tests`（`models.rs` の遷移関数、`shared/validation.rs` など純粋ロジック）
-- HTTP 統合テスト: `backend/tests/api.rs`。`connect("sqlite::memory:")` でテストごとに分離した SQLite を作り、`create_app(AppState::new(pool, secret), false)` を `tower::ServiceExt::oneshot` で直接呼ぶ
+- HTTP 統合テスト: `backend/tests/`（`api.rs` = 業務 API / `system.rs` = 横断的な挙動 / `security.rs` = セキュリティ。共通ヘルパーは `common/mod.rs`）。ファイル上限（800 行）を超えそうなら観点ごとにファイルを分ける。`connect("sqlite::memory:")` でテストごとに分離した SQLite を作り、`create_app(AppState::new(pool, secret), false)` を `tower::ServiceExt::oneshot` で直接呼ぶ
 - エンドポイントごとに正常系・異常系（400/401/403/404/409/422）と可視性（PRIVATE の 404、DRAFT は作成者のみ等）を検証する
 - カバレッジ目標: 80% 以上（`cargo llvm-cov` を導入している場合）
 

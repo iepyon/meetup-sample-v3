@@ -53,7 +53,7 @@ DDD bounded contexts。各コンテキストは `controller.rs` -> `usecases.rs`
 - `backend/src/shared/` — 共通基盤（エラー型 `ApiError`、検証 `validation.rs`、JWT `auth.rs`、レート制限/キャッシュ `middleware.rs`、Event Bus、OpenAPI `openapi.rs`）
 - `backend/src/infrastructure/` — SQLite 接続と `schema.sql`（起動時に冪等適用）
 - `backend/src/app.rs` — Composition Root（`AppState` とルーティング）
-- `backend/tests/api.rs` — HTTP 統合テスト（インメモリ SQLite）
+- `backend/tests/` — HTTP 統合テスト（インメモリ SQLite）。`api.rs`（認証・コミュニティ・メンバー・イベント）/ `system.rs`（横断的な挙動: 404・405・レート制限・キャッシュ等）/ `security.rs`（セキュリティヘッダ・415・SPA 配信等）、共通ヘルパーは `common/mod.rs`
 
 ### Frontend
 
