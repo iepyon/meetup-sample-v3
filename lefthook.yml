@@ -12,4 +12,5 @@ pre-commit:
       run: ./scripts/run-quality.sh "cargo test --workspace"
     e2e-prettier:
       glob: "e2e/**/*.{ts,json}"
-      run: ./scripts/run-quality.sh "npx prettier --check {staged_files}"
+      # ファイル名は引用符で囲まず、lefthook のエスケープのまま引数配列で渡す（シェルで再評価させない）
+      run: ./scripts/run-quality.sh npx --no-install prettier --check -- {staged_files}

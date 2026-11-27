@@ -7,6 +7,15 @@ dist/
 .env
 .env.*
 !.env.example
+
+# 鍵・認証情報（誤ってコミット・イメージへ同梱しないよう除外）
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+credentials*.json
 coverage/
 .DS_Store
 *.log

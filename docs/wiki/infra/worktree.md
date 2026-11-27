@@ -23,7 +23,7 @@ verified: 5891e84
 ## Gotcha
 
 - dev サーバはメインの 5173 ではなく**別ポート**で配信される（worktree のフロント変更を 5173 で確認しても反映されない）
-- `WITH_CLAUDE=1` でのマウントは worktree では `:ro`（[Docker 開発環境](docker-dev.md)）
+- `WITH_CLAUDE=1` でのマウントは main・worktree とも `:ro`（[Docker 開発環境](docker-dev.md)）
 - lefthook は worktree ごとに `lefthook install` が必要
 
 ## 関連

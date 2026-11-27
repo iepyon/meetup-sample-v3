@@ -25,7 +25,14 @@
       "WebFetch",
       "WebSearch"
     ],
-    "ask": ["Bash(git push:*)", "Bash(gh pr create:*)"]
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Edit(./scripts/**)",
+      "Edit(./.claude/**)",
+      "Edit(./.git/**)",
+      "Edit(./lefthook.yml)"
+    ]
   },
   "hooks": {
     "PostToolUse": [

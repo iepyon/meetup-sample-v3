@@ -53,7 +53,6 @@ fi
 SLOT=$(( PR % 2000 ))
 
 export WORK_DIR="$WORKTREE_DIR"
-export CLAUDE_MOUNT_SUFFIX=":ro"
 export BACKEND_PORT="${BACKEND_PORT:-$((4000 + SLOT))}"
 export FRONTEND_PORT="${FRONTEND_PORT:-$((6000 + SLOT))}"
 

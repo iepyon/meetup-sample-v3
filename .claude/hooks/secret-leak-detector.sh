@@ -5,6 +5,12 @@ INPUT="$(cat)"
 # 無音で no-op になると「動いているつもり」バグに気づけないため警告する。
 [ -z "$INPUT" ] && echo "secret-leak-detector: フック入力(stdin)が空です。ハーネス設定を確認してください" >&2
 
+# jq が無いと出力を取り出せず黙って素通しになる（fail-open）ため、検査できないことを警告する
+if ! command -v jq >/dev/null 2>&1; then
+  echo "secret-leak-detector: jq が見つからないため出力を検査できません。jq を導入してください" >&2
+  exit 0
+fi
+
 # Bash tool の tool_response は {stdout, stderr, ...} オブジェクト。
 # 他ツールでは文字列のこともあるため型で分岐する。
 OUTPUT="$(printf '%s' "$INPUT" | jq -r '
@@ -27,9 +33,29 @@ if echo "$OUTPUT" | grep -qE 'AKIA[0-9A-Z]{16}'; then
   WARNINGS="$WARNINGS\n- AWS アクセスキーが出力に含まれています"
 fi
 
-# 汎用 API キー/シークレットキーパターン
-if echo "$OUTPUT" | grep -qE '(sk-[a-zA-Z0-9]{20,}|sk_live_[a-zA-Z0-9]+)'; then
+# 汎用 API キー/シークレットキーパターン（Anthropic の sk-ant-… / OpenAI の sk-proj-… はハイフンを含む）
+if echo "$OUTPUT" | grep -qE '(sk-[a-zA-Z0-9]{20,}|sk-(ant|proj)-[A-Za-z0-9_-]{20,}|sk_live_[a-zA-Z0-9]+)'; then
   WARNINGS="$WARNINGS\n- API シークレットキーが出力に含まれています"
+fi
+
+# GitHub トークン（classic / fine-grained）
+if echo "$OUTPUT" | grep -qE '(gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})'; then
+  WARNINGS="$WARNINGS\n- GitHub トークンが出力に含まれています"
+fi
+
+# Slack / Google の API トークン
+if echo "$OUTPUT" | grep -qE '(xox[abpr]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})'; then
+  WARNINGS="$WARNINGS\n- Slack / Google の API トークンが出力に含まれています"
+fi
+
+# 秘密鍵（PEM / PGP）
+if echo "$OUTPUT" | grep -qE -- '-----BEGIN ([A-Z]+ )*PRIVATE KEY( BLOCK)?-----'; then
+  WARNINGS="$WARNINGS\n- 秘密鍵が出力に含まれています"
+fi
+
+# *_API_KEY 形式の環境変数（ANTHROPIC_API_KEY など）
+if echo "$OUTPUT" | grep -qE '[A-Z0-9_]*API_KEY[[:space:]]*[=:][[:space:]]*[A-Za-z0-9+/_=.-]{16,}'; then
+  WARNINGS="$WARNINGS\n- API キーが環境変数の形式で出力に含まれています"
 fi
 
 # パスワード系 (key=value 形式)

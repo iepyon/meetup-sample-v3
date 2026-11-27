@@ -18,10 +18,21 @@ esac
 PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 RUN_CMD="$PROJECT_DIR/scripts/run-quality.sh"
 
-# ホストの絶対パス → プロジェクトルートからの相対パスへ変換
-REL="$(echo "$FILE" | sed "s|^$PROJECT_DIR/||")"
+# ホストの絶対パス → プロジェクトルートからの相対パスへ変換（行単位の sed は改行入りパスで誤るため使わない）
+REL="${FILE#"$PROJECT_DIR"/}"
 [ "$REL" = "$FILE" ] && exit 0  # プロジェクト外はスキップ
 
-"$RUN_CMD" "npx prettier --write \"$REL\"" > /dev/null 2>&1
+# ファイル名は外部由来（AI が書いたパス）なので、文字列全体を安全な文字だけに限定する。
+# 改行などの制御文字・先頭の -（オプション注入）・プロジェクト外へ出る .. のパス要素を拒否する
+case "$REL" in
+  -*|*[!A-Za-z0-9._/-]*|..|../*|*/../*|*/..)
+    echo "prettier-format: 想定外の文字を含むパスのため整形をスキップしました" >&2
+    exit 0
+    ;;
+esac
+
+# 引数配列のまま渡し、シェルで再評価させない。-- 以降はファイル名としてだけ扱わせる。
+# prettier はリポジトリで版を固定したものだけを使う
+"$RUN_CMD" npx --no-install prettier --write -- "$REL" > /dev/null 2>&1
 
 exit 0
