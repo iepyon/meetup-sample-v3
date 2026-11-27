@@ -94,7 +94,7 @@ pub fn document() -> Value {
                         "createdAt": { "type": "string", "format": "date-time" } } },
                 "MemberRead": { "type": "object", "required": ["id", "communityId", "accountName", "role", "status", "createdAt"],
                     "properties": { "id": { "type": "string", "format": "uuid" }, "communityId": { "type": "string", "format": "uuid" },
-                        "accountId": { "type": "string", "format": "uuid", "description": "ACTIVE メンバーのみ閲覧可能" },
+                        "accountId": { "type": "string", "format": "uuid", "description": "閲覧者が当該コミュニティの ACTIVE メンバーの場合のみ返る" },
                         "accountName": { "type": "string" },
                         "role": { "type": "string", "enum": ["OWNER", "ADMIN", "MEMBER"] },
                         "status": { "type": "string", "enum": ["PENDING", "ACTIVE"] },
@@ -148,6 +148,7 @@ pub fn document() -> Value {
                 "post": { "tags": ["Members"], "summary": "コミュニティに参加する", "security": bearer, "parameters": [id_param("id")],
                     "responses": { "201": ok_json("参加成功", "MemberResponse"), "401": resp("認証エラー"), "404": resp("見つからない"), "409": resp("参加済み") } },
                 "get": { "tags": ["Members"], "summary": "メンバー一覧を取得する",
+                    "description": "既定は ACTIVE メンバーのみ。閲覧者が ACTIVE な OWNER / ADMIN のときは承認待ち（PENDING）も先頭に含め、total もそれを数える。",
                     "parameters": [id_param("id"), page_params()[0].clone(), page_params()[1].clone()],
                     "responses": { "200": ok_json("取得成功", "MemberListResponse"), "404": resp("見つからない") } }
             },

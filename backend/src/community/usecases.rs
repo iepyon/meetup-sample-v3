@@ -330,6 +330,7 @@ pub struct MemberListItem {
 }
 
 /// PUBLIC は誰でも、PRIVATE は ACTIVE メンバーのみ閲覧可能（存在を漏らさず 404）。
+/// 承認待ち（PENDING）は申請を審査できる閲覧者（ACTIVE な OWNER / ADMIN）にだけ含める。
 pub async fn list_members_read_query(
     ctx: &Ctx<'_>,
     community_id: &str,
@@ -343,21 +344,24 @@ pub async fn list_members_read_query(
         .await?
         .ok_or(ListMembersError::CommunityNotFound)?;
 
-    let is_active_member = match requesting_account_id {
-        Some(account_id) => ctx
-            .members
-            .find_by_ids(community_id, account_id)
-            .await?
-            .is_some_and(|m| m.status == MemberStatus::Active),
-        None => false,
+    let requester = match requesting_account_id {
+        Some(account_id) => ctx.members.find_by_ids(community_id, account_id).await?,
+        None => None,
     };
+    let is_active_member = requester
+        .as_ref()
+        .is_some_and(|m| m.status == MemberStatus::Active);
     if community.visibility == CommunityVisibility::Private && !is_active_member {
         return Err(ListMembersError::CommunityNotFound);
     }
 
+    // 承認待ちの申請者は審査できるメンバーにだけ見せる
+    let include_pending = requester
+        .as_ref()
+        .is_some_and(|m| m.can_review_applications());
     let (rows, total) = ctx
         .members
-        .list_active_with_names(community_id, limit, offset)
+        .list_with_names(community_id, include_pending, limit, offset)
         .await?;
     let items = rows
         .into_iter()

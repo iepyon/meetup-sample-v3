@@ -7,10 +7,10 @@ use crate::auth::Auth;
 use crate::components::{Button, Card, CategoryBadge, Variant, VisibilityBadge};
 use crate::types::{
     CommunityEvent, CommunityMember, CommunityResponse, ListEventsResponse, ListMembersResponse,
-    Role,
+    MemberStatus, Role,
 };
 
-/// メンバーカード（OWNER には承認/拒否ボタンを出す。対象が OWNER 自身のときは出さない）
+/// メンバーカード（OWNER には承認待ち（PENDING）の申請者にだけ承認/拒否ボタンを出す）
 #[component]
 fn MemberCard(
     member: CommunityMember,
@@ -23,7 +23,7 @@ fn MemberCard(
         .clone()
         .or_else(|| member.account_id.clone())
         .unwrap_or_default();
-    let target_is_owner = member.role == Role::Owner;
+    let target_is_pending = member.status == MemberStatus::Pending;
     let member_id = member.id.clone();
     view! {
         <Card class="flex items-center justify-between">
@@ -33,7 +33,7 @@ fn MemberCard(
                     {member.role.as_str()} " / " {member.status.as_str()}
                 </p>
             </div>
-            <Show when=move || is_owner.get() && !target_is_owner>
+            <Show when=move || is_owner.get() && target_is_pending>
                 <div class="flex gap-2">
                     <Button on_click=Callback::new({
                         let id = member_id.clone();

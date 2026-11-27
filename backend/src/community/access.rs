@@ -1,6 +1,7 @@
 //! コミュニティ単位のアクセス制御と UseCase 依存性の組み立て。
 //! controller から独立させ、他コンテキスト（event など）が community の controller に依存しないようにする。
 
+pub use super::models::MANAGER_ROLES;
 use super::models::MemberRole;
 use super::repository::{CommunityMemberRepository, CommunityRepository};
 use super::usecases::Ctx;
@@ -58,5 +59,3 @@ pub async fn require_community_role(
         _ => Err(ApiError::forbidden()),
     }
 }
-
-pub const MANAGER_ROLES: &[MemberRole] = &[MemberRole::Owner, MemberRole::Admin];

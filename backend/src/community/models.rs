@@ -13,6 +13,9 @@ crate::string_enum!(CommunityVisibility { Public => "PUBLIC", Private => "PRIVAT
 crate::string_enum!(MemberRole { Owner => "OWNER", Admin => "ADMIN", Member => "MEMBER" });
 crate::string_enum!(MemberStatus { Pending => "PENDING", Active => "ACTIVE" });
 
+/// メンバー管理（承認・拒否・イベント作成）ができるロール
+pub const MANAGER_ROLES: &[MemberRole] = &[MemberRole::Owner, MemberRole::Admin];
+
 // ============================================================
 // コミュニティ
 // ============================================================
@@ -62,6 +65,11 @@ impl CommunityMember {
             "status": self.status.as_str(),
             "createdAt": to_iso(&self.created_at),
         })
+    }
+
+    /// 承認待ち（PENDING）の参加申請を閲覧・審査できるか（ACTIVE な OWNER / ADMIN）
+    pub fn can_review_applications(&self) -> bool {
+        self.status == MemberStatus::Active && MANAGER_ROLES.contains(&self.role)
     }
 }
 
@@ -236,6 +244,19 @@ mod tests {
             Err(RejectMemberError::CannotRejectOwner)
         ));
         assert!(reject_member(&member(MemberRole::Member, MemberStatus::Pending)).is_ok());
+    }
+
+    #[test]
+    fn activeなオーナーと管理者は承認待ちの申請を審査できる() {
+        assert!(member(MemberRole::Owner, MemberStatus::Active).can_review_applications());
+        assert!(member(MemberRole::Admin, MemberStatus::Active).can_review_applications());
+    }
+
+    #[test]
+    fn 一般メンバーとpendingのメンバーは承認待ちの申請を審査できない() {
+        assert!(!member(MemberRole::Member, MemberStatus::Active).can_review_applications());
+        assert!(!member(MemberRole::Member, MemberStatus::Pending).can_review_applications());
+        assert!(!member(MemberRole::Admin, MemberStatus::Pending).can_review_applications());
     }
 
     #[test]

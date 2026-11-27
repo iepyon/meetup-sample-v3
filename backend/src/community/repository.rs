@@ -262,29 +262,44 @@ impl CommunityMemberRepository {
         Ok(())
     }
 
-    /// ACTIVE メンバーをアカウント名付きで取得する（作成日時の昇順）。
-    pub async fn list_active_with_names(
+    /// メンバーをアカウント名付きで取得する。
+    /// 既定は ACTIVE のみ。`include_pending` が真なら承認待ち（PENDING）も含め、
+    /// 審査対象がページングで埋もれないよう PENDING を先頭に並べる（同じ状態の中は作成日時の昇順）。
+    pub async fn list_with_names(
         &self,
         community_id: &str,
+        include_pending: bool,
         limit: i64,
         offset: i64,
     ) -> Result<(Vec<MemberReadRow>, i64), sqlx::Error> {
+        let active = MemberStatus::Active.as_str();
+        // PENDING を含めないときは ACTIVE を 2 回渡し、条件を ACTIVE のみに保つ
+        let second = if include_pending {
+            MemberStatus::Pending.as_str()
+        } else {
+            active
+        };
         let rows = sqlx::query_as::<_, MemberReadDbRow>(
             "SELECT m.id, m.community_id, m.account_id, a.name AS account_name, \
                     m.role, m.status, m.created_at \
              FROM community_members m JOIN accounts a ON a.id = m.account_id \
-             WHERE m.community_id = ? AND m.status = 'ACTIVE' \
-             ORDER BY m.created_at ASC LIMIT ? OFFSET ?",
+             WHERE m.community_id = ? AND m.status IN (?, ?) \
+             ORDER BY (m.status = ?) ASC, m.created_at ASC LIMIT ? OFFSET ?",
         )
         .bind(community_id)
+        .bind(active)
+        .bind(second)
+        .bind(active)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.pool)
         .await?;
         let total: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM community_members WHERE community_id = ? AND status = 'ACTIVE'",
+            "SELECT COUNT(*) FROM community_members WHERE community_id = ? AND status IN (?, ?)",
         )
         .bind(community_id)
+        .bind(active)
+        .bind(second)
         .fetch_one(&self.pool)
         .await?;
 
