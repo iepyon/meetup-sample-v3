@@ -2,7 +2,7 @@
 
 2026-11-27 に TS から Rust（axum + sqlx + Leptos CSR）へ全面移行した時点で残っている項目。経緯と判断理由は [arch-20261127-rewrite-in-rust.md](decision-logs/arch-20261127-rewrite-in-rust.md) を参照。
 
-移行時点の検証済み: fmt / clippy（native・wasm32）、`cargo test`（backend 単体 33 + 統合 47、frontend 10）、Playwright e2e 11 件。
+移行時点の検証済み: fmt / clippy（native・wasm32）、`cargo test`（backend 単体 33 + 統合 47、frontend 10）、Playwright e2e 11 件。E2E はその後 Rust（`e2e/`、chromiumoxide）へ移行し、現在は 14 件（[arch-20261127-e2e-in-rust.md](decision-logs/arch-20261127-e2e-in-rust.md)）。
 
 完了した項目は `[x]` にして残す。
 
@@ -70,7 +70,7 @@
 - [x] `backend/tests/api.rs` が 1300 行超でファイル上限（800 行）を超過。コンテキストごとに分割する — 2026-11-27 に `api.rs` / `system.rs` / `security.rs` + `common/` に分割
 
 ### 開発環境
-- [ ] trunk はビルドに失敗しても既存の `frontend/dist` を配信し続けるため、E2E が古い UI に対して黙って通る。webServer を `trunk build && trunk serve` にする等で失敗を顕在化させるか決める
+- [x] trunk はビルドに失敗しても既存の `frontend/dist` を配信し続けるため、E2E が古い UI に対して黙って通る。webServer を `trunk build && trunk serve` にする等で失敗を顕在化させるか決める — 2026-11-27 の E2E の Rust 移行で解消。`d e2e` は `trunk build --dist ../target/e2e-dist` を先に実行し、失敗すればそこで止まる（`set -e`）。ただし `cargo test -p meetup-e2e` を直接実行した場合は既存の `target/e2e-dist` をそのまま使う
 - [ ] Dockerfile で固定した `wasm-bindgen-cli` の版（0.2.130）を `Cargo.lock` の wasm-bindgen 更新時に揃える
 
 ### 要確認（監査の指摘。旧挙動が不明なものを含む）
@@ -115,9 +115,9 @@ backend / frontend・実行環境の 2 本のセキュリティレビューの�
 ### 開発環境・サプライチェーン
 - [ ] Dockerfile: ベースイメージ `node:26-bookworm` を digest で固定していない。`git config --system --add safe.directory '*'` をマウント先に限定する。trunk が取得する tailwindcss / wasm-opt の検証方法を確認する
 - [ ] CI: 公式 Action（`actions/checkout` 等）もタグ指定。サードパーティと合わせて commit SHA に固定する
-- [ ] dep-install-guard を `bash -c 'npm install X'`・`/usr/bin/npm`・`npm --prefix`・`npx`・`pnpm` / `yarn` / `bun` で回避できる
+- [x] dep-install-guard を `bash -c 'npm install X'`・`/usr/bin/npm`・`npm --prefix`・`npx`・`pnpm` / `yarn` / `bun` で回避できる — 2026-11-27 に npm の撤去に伴い hook 自体を削除したため対象外
 - [ ] コンテナから rw マウントのリポジトリ経由で `scripts/`・`lefthook.yml`・`.git/hooks` を書き換えられ、ホストの次の commit で実行される。ビルド・テスト用の経路と編集の経路を分けるか検討
-- [ ] lefthook の `{staged_files}` を引用符なしで渡す形は、lefthook がファイル名をエスケープすることに依存する（ホストの 2.2.2 で確認済み）。コンテナ内は 1.10.4 のため `min_version` を一律には上げられない。版をそろえて `min_version` を設定する
+- [x] lefthook の `{staged_files}` を引用符なしで渡す形は、lefthook がファイル名をエスケープすることに依存する（ホストの 2.2.2 で確認済み）。コンテナ内は 1.10.4 のため `min_version` を一律には上げられない。版をそろえて `min_version` を設定する — 2026-11-27 に `{staged_files}` を使っていた `e2e-prettier` を削除したため対象外（ホストとコンテナで lefthook の版が異なる点は残る）
 - [ ] secret-leak-detector の誤検知（`API_KEY=your-api-key` 等のプレースホルダ、`sk-` で始まる一般の文字列）と検知漏れ（JSON / 引用符付きの `"X_API_KEY": "…"`、小文字の `api_key=`）
 - [ ] シェルスクリプトの `$COMPOSE` / `$EXEC` が未クォート（空白を含むパスで壊れる）。`docker-worktree.sh` の worktree 名に `../` を含められる
 

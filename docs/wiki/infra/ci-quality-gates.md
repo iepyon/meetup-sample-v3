@@ -15,17 +15,17 @@ verified: 5891e84
 # CI・品質ゲート
 
 品質ゲートは 3 層: ① git pre-commit（lefthook）② CI（GitHub Actions）③ AI hooks（[別ページ](ai-hooks.md)）。`--no-verify` でローカルを迂回しても CI が最後の砦。
-③ は ①② と**重複しない AI 固有のリスク**（依存追加・出力のシークレット混入）に限定し、lint / 型 / テストは ①② に一元化する。
+③ は ①② と**重複しない AI 固有のリスク**（出力のシークレット混入）に限定し、lint / 型 / テストは ①② に一元化する。
 
 ## lefthook pre-commit（lefthook.yml, parallel: false）
 
-`**/*.rs` の変更に対して順に実行する: ① `cargo fmt --all -- --check` ② `cargo clippy --workspace --all-targets -- -D warnings && cargo clippy -p meetup-frontend --target wasm32-unknown-unknown -- -D warnings` ③ `cargo test --workspace`。すべて `scripts/run-quality.sh` 経由で、コンテナ内（`/.dockerenv`）/ worktree（docker-worktree.sh 委譲）/ メイン（docker-dev.sh 委譲）の 3 経路を自動判別する。prettier / eslint / tsc は撤去された（e2e の TS は pre-commit 対象外）。
+`**/*.rs` の変更に対して順に実行する: ① `cargo fmt --all -- --check` ② `cargo clippy --workspace --all-targets -- -D warnings && cargo clippy -p meetup-frontend --target wasm32-unknown-unknown -- -D warnings` ③ `cargo test --workspace`。すべて `scripts/run-quality.sh` 経由で、コンテナ内（`/.dockerenv`）/ worktree（docker-worktree.sh 委譲）/ メイン（docker-dev.sh 委譲）の 3 経路を自動判別する。prettier / eslint / tsc は撤去された（npm を撤去し TS のコードが無くなったため。`e2e/` も Rust で、上記の fmt / clippy の対象に入る）。
 
 ## GitHub Actions（.github/workflows/ci.yml）
 
 - トリガー: push(main, `paths-ignore: **.md, docs/**`) と PR。`concurrency` で古い実行を自動キャンセル
 - **quality ジョブ**（20 分, `dtolnay/rust-toolchain@stable` + `Swatinem/rust-cache`）: `cargo fmt --all -- --check` → `cargo clippy --workspace --all-targets -- -D warnings`（backend + native）→ `cargo clippy -p meetup-frontend --target wasm32-unknown-unknown -- -D warnings`（frontend）→ `cargo test --workspace --locked`（backend 単体・HTTP 統合 + frontend 純粋関数）
-- **e2e ジョブ**（PR のみ = private 無料枠節約, 30 分）: Rust（wasm32 ターゲット）+ `trunk` 0.22.2 インストール → Node 26 で `npm ci` → Playwright chromium → `npm test --workspace e2e`（`webServer` 設定が backend と frontend を自動起動）。失敗時 playwright-report を artifact 保存
+- **e2e ジョブ**（PR のみ = private 無料枠節約, 30 分）: Rust（wasm32 ターゲット）+ `trunk` 0.22.2 インストール → `frontend/` で `trunk build --dist ../target/e2e-dist` → `cargo test -p meetup-e2e --locked -- --ignored`（`CHROME=/usr/bin/google-chrome` でランナーにプリインストールの Chrome を使う）。backend はテストごとに同一プロセスで起動するため、サーバの事前起動は不要。Node / npm は使わない。E2E は `#[ignore]` 付きなので quality ジョブの `cargo test --workspace` では走らない
 
 ## `d review` の中身（scripts/docker-dev.sh の `review`）
 

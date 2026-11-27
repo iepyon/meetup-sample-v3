@@ -6,7 +6,7 @@ Meetup コミュニティとメンバーシップを管理するフルスタッ�
 
 - **Backend**: Rust + axum + sqlx + SQLite（DDD の境界づけられたコンテキスト構成）
 - **Frontend**: Rust + Leptos 0.8 (CSR / WebAssembly) + Trunk + Tailwind CSS
-- **Testing**: `cargo test`（単体 + HTTP 統合テスト）+ Playwright（E2E のみ npm / TypeScript）
+- **Testing**: `cargo test`（単体 + HTTP 統合テスト）+ E2E（Rust + chromiumoxide でヘッドレス Chromium を操作。npm は使わない）
 
 ## Getting Started
 
@@ -17,10 +17,10 @@ Meetup コミュニティとメンバーシップを管理するフルスタッ�
 alias d="./scripts/docker-dev.sh"
 d build     # イメージビルド（Dockerfile 変更時）
 d up        # コンテナ起動
-d install   # cargo fetch + npm install (E2E 用) + playwright browsers
+d install   # cargo fetch + lefthook install（git pre-commit の有効化）
 d dev       # 開発サーバー起動 (backend:3000 + frontend:5173)
 d test      # cargo test --workspace
-d e2e       # Playwright E2E テスト
+d e2e       # E2E テスト（SPA をビルドし cargo test -p meetup-e2e -- --ignored）
 d shell     # コンテナ内 bash
 d down      # 停止 + 削除（named volume は保持）
 
@@ -42,9 +42,10 @@ worktree ごとに **独立した Docker コンテナ・独立したポート・
 git worktree add .worktrees/feat-x -b feat-x        # worktree 作成
 ./scripts/docker-worktree.sh feat-x ports           # 割り当てポート確認
 ./scripts/docker-worktree.sh feat-x up              # 独立コンテナ起動
-./scripts/docker-worktree.sh feat-x install         # 依存インストール + DB セットアップ
+./scripts/docker-worktree.sh feat-x install         # 依存取得 + lefthook install
 ./scripts/docker-worktree.sh feat-x dev             # 開発サーバー起動（表示された別ポート）
 ./scripts/docker-worktree.sh feat-x test            # テスト
+./scripts/docker-worktree.sh feat-x e2e             # E2E テスト（main と同時に実行できる）
 
 ./scripts/docker-worktree.sh feat-x clean           # コンテナ + volume 削除（削除前に必須）
 git worktree remove .worktrees/feat-x               # worktree 削除
@@ -64,7 +65,7 @@ BACKEND_PORT=4100 FRONTEND_PORT=6100 ./scripts/docker-worktree.sh feat-x up   # 
 
 コミット時に cargo fmt / clippy / test が自動実行されます。
 
-**Docker 環境:** `d install` で（E2E 用の）`npm install` が走るため、`npm prepare` 経由で `lefthook install` が自動実行されます。追加手順は不要です。
+**Docker 環境:** `d install` が `lefthook install` を実行します。追加手順は不要です。
 
 **ホスト直接実行の場合:** lefthook バイナリが必要です。
 
@@ -72,21 +73,21 @@ BACKEND_PORT=4100 FRONTEND_PORT=6100 ./scripts/docker-worktree.sh feat-x up   # 
 # macOS
 brew install lefthook
 
-# Linux（npm 経由）
-npm install -g @evilmartians/lefthook
+# Linux（GitHub Releases のバイナリを PATH に置く。Go があれば go install でもよい）
+go install github.com/evilmartians/lefthook@v1.10.4   # Docker イメージと同じ版
 ```
 
-`npm install` 実行時に `npm prepare` が自動で `lefthook install` を呼び出します。
+インストール後、リポジトリ直下で `lefthook install` を一度実行します。
 
-> **git worktree を使う場合:** worktree ごとに `./scripts/docker-worktree.sh <name> install`（`npm install` → `npm prepare` 経由で `lefthook install`）の実行が必要です。詳細は上記「並行開発（git worktree で独立起動）」を参照。
+> **git worktree を使う場合:** worktree ごとに `./scripts/docker-worktree.sh <name> install`（`cargo fetch` → `lefthook install`）の実行が必要です。詳細は上記「並行開発（git worktree で独立起動）」を参照。
 
 ## Project Structure
 
 ```
 backend/     axum API サーバー（auth / community / event / shared / infrastructure）
 frontend/    Leptos SPA（WebAssembly。Trunk でビルド）
-e2e/         Playwright E2E tests（Rust 版を起動して検証）
-Cargo.toml   Cargo workspace（backend + frontend）
+e2e/         E2E テスト（Rust。backend を同一プロセスで起動し、chromiumoxide でヘッドレス Chromium を操作）
+Cargo.toml   Cargo workspace（backend + frontend + e2e）
 ```
 
 ## 本番相当の起動（単一バイナリ）

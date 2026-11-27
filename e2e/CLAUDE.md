@@ -1,52 +1,62 @@
-# E2E テスト (Playwright)
+# E2E テスト (Rust / chromiumoxide)
 
-Meetup アプリケーション（Rust: axum + Leptos）のエンドツーエンドテスト。バックエンド + フロントエンドを起動し、ブラウザ上でユーザーフロー全体を検証する。
+Meetup アプリケーション（Rust: axum + Leptos）のエンドツーエンドテスト。backend を同一プロセスで起動し、ヘッドレス Chromium を Chrome DevTools Protocol（[chromiumoxide](https://crates.io/crates/chromiumoxide)）で操作してユーザーフロー全体を検証する。
 
 ## Commands
 
 ```bash
-# 実行前提 (初回 or 環境変更時)
-npm install                          # 全ワークスペースの依存インストール (ルートで)
-npx playwright install --with-deps   # ブラウザバイナリのインストール (e2e/ で)
-# DB スキーマは backend 起動時に自動適用される (backend/src/infrastructure/schema.sql)
-# 前提: Rust ツールチェーンと trunk (cargo install trunk --locked)、rustup target add wasm32-unknown-unknown
-# ※ バックエンド (cargo run) とフロントエンド (trunk serve) は webServer 設定で自動起動されるため手動起動不要
-#   初回は cargo / trunk のビルドに数分かかる。Playwright 版とキャッシュ済みブラウザの版が違う場合は
-#   PW_CHROMIUM_PATH=<chromium 実行ファイル> で差し替えられる
+d e2e                      # trunk build（target/e2e-dist へ）→ cargo test -p meetup-e2e -- --ignored
+d e2e --test auth          # 追加引数は cargo test の `--` より前に渡る（テストファイルの指定など）
+./scripts/docker-worktree.sh <name> e2e   # worktree でも同時に実行できる（ポートを共有しない）
 
-# テスト実行 (cd e2e/)
-npm test          # Playwright テスト実行 (headless)
-npm run test:ui   # Playwright UI モードで実行
+# コンテナ内で直接
+(cd frontend && trunk build --dist ../target/e2e-dist)
+cargo test -p meetup-e2e -- --ignored
 ```
+
+- テストは全件 `#[ignore]` 付き。`cargo test --workspace`（`d test` / pre-commit / CI quality）では実行されず、ブラウザ無しで通る。clippy / fmt の対象には含まれる
+- ブラウザは自動検出（`chromium` / `google-chrome` など）。`CHROME=<実行ファイル>` で差し替えられる。Docker イメージには Debian の `chromium` を導入済み、CI はランナーの Google Chrome を使う
+- SPA の場所は既定で `target/e2e-dist`。`E2E_FRONTEND_DIST` で上書きできる。見つからなければ panic で案内する
 
 ## 構成
 
-- **テストファイル**: `tests/*.spec.ts`
-- **設定**: `playwright.config.ts`
-- `webServer` でバックエンド (port 3000) とフロントエンド (port 5173) を自動起動し、テスト終了後に自動停止する
-- `reuseExistingServer: true` — 既に起動済みなら再利用（その場合はテスト後も停止しない）
-- フロントエンド (trunk serve, 127.0.0.1:5173) は `/auth` `/communities` `/health` を backend (3000) へプロキシする（`frontend/Trunk.toml`）
+| ファイル | 役割 |
+|---------|------|
+| `src/lib.rs` | `E2e::start()` — テストごとにサーバ + 専用プロファイルの Chromium + ページを用意。`Deref` で `Page` の操作を呼べる |
+| `src/server.rs` | `create_app_with_frontend` をインメモリ SQLite・`127.0.0.1:0`・レート制限無効で起動し、SPA を同一オリジンで配信 |
+| `src/page.rs` | Playwright 風の `Page` / `Locator`。操作とアサーションは自動待機（既定 10 秒ポーリング） |
+| `src/locator.js` | ページ内で評価するロケーター本体（role / label / text / css と `has` 絞り込み） |
+| `src/flows.rs` | 共通の操作手順（登録・ログイン・ログアウト・コミュニティ作成・API での参加申請など） |
+| `tests/auth.rs` | 新規登録、ログイン、ログイン失敗、ログアウト |
+| `tests/community.rs` | コミュニティ作成、詳細表示、カテゴリフィルター |
+| `tests/member.rs` | 参加申請の承認・拒否、コミュニティ参加・退会 |
+| `tests/event.rs` | イベント作成、入力エラー、権限チェック |
 
-## テストファイル
+`d dev`（3000 / 5173）とは独立している。テストごとにサーバ・DB・ブラウザが別なので、並列実行してもデータが混ざらない。
 
-| ファイル | コンテキスト | カバー範囲 |
-|---------|------------|-----------|
-| `auth.spec.ts` | auth | 新規登録、ログイン、ログイン失敗、ログアウト |
-| `community.spec.ts` | meetup | コミュニティ作成、詳細表示、カテゴリフィルター |
-| `member.spec.ts` | meetup | コミュニティ参加、コミュニティ退会 |
-| `event.spec.ts` | meetup | イベント作成、権限チェック |
+## Locator API（Playwright 対応表）
 
-## パターン
+| Playwright | Rust |
+|-----------|------|
+| `page.getByRole("button", { name, exact: true })` | `page.get_by_role("button").name(name).exact()` |
+| `getByRole("heading", { level: 2 })` | `.get_by_role("heading").level(2)` |
+| `page.getByLabel(t)` / `getByText(t)` / `locator(css)` | `get_by_label(t)` / `get_by_text(t)` / `locator(css)` |
+| `locator.filter({ has })` | `.filter_has(other)` |
+| `click()` / `fill(v)` / `selectOption(v)` | `.click()` / `.fill(v)` / `.select_option(v)` |
+| `toBeVisible()` / `not.toBeVisible()` | `.expect_visible()` / `.expect_hidden()` |
+| `toHaveCount(n)` / `toHaveText(s)` | `.expect_count(n)` / `.expect_text(s)` |
+| `expect(page).toHaveURL(p)` | `page.expect_path(p)` |
+| `page.request.post(...)` | `page.fetch_json("POST", path, body, token)` |
 
-- **テスト分離**: `Date.now()` ベースの `uniqueSuffix()` でユーザー・コミュニティ名を一意化。テスト間でデータが衝突しない
-- **ヘルパー関数**: テストファイルごとに `registerAndLogin()`, `createCommunity()`, `navigateToCommunity()`, `logout()`, `login()` 等を定義
-- **ロケーター**: `getByRole`, `getByLabel`, `getByText` を優先（Playwright 推奨セレクタ）。`textarea#description`, `select#category` 等の ID セレクタも一部使用
-- **アサーション**: `toBeVisible()`, `toHaveURL()`, `not.toBeVisible()` で UI 状態を検証
-- **describe/test 名は日本語**で記述する
+- 名前・テキストは既定で大文字小文字無視の部分一致、`.exact()` で完全一致
+- 操作と `expect_visible` / `expect_text` は一致がちょうど 1 件であることを要求する（Playwright の strict mode 相当）
+- `fill` は値を差し替えて `input` / `change` を発火する（`datetime-local` や `select` も同じ）。クリックは CDP のマウスイベント
+- タイムアウト時は最後の状態とページ本文の先頭を添えて panic する
 
 ## テスト作成時の注意
 
-- 各テストは登録から始めて独立して動作すること（他テストの状態に依存しない）
-- フォーム操作後は `await expect(...).toBeVisible()` や `await expect(page).toHaveURL(...)` で遷移完了を待つ
-- ログイン状態が必要なテストは、テスト内で登録→ログインを行う
-- 複数ユーザーが関わるテスト（参加・退会）は、登録→操作→ログアウト→別ユーザー登録→操作の流れ
+- テスト名（関数名）は日本語。各テストは `E2e::start()` から始め、最後に `page.close().await` を呼ぶ
+- 属性は `#[tokio::test(flavor = "multi_thread")]` と `#[ignore = "E2E: ..."]` をそろえる
+- 否定のアサーション（`expect_hidden` / `expect_count(0)`）は即座に通り得る。先に肯定の状態（エラー表示・ボタンの切り替わりなど）を待ってから書く
+- メールアドレスは英数字の接頭辞 + `unique_suffix()` で作る（日本語を入れると入力検証で弾かれる）
+- 複数ユーザーが関わるテストは、登録 → 操作 → ログアウト → 別ユーザー登録 → 操作の流れ。UI から辿れない前提（非公開コミュニティへの申請など）は `fetch_json` で API を直接呼ぶ

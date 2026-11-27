@@ -12,10 +12,10 @@ Meetup community management full-stack application (Rust: axum + sqlx + SQLite b
 alias d="./scripts/docker-dev.sh"
 
 d up                       # コンテナ起動（初回は d build → d up → d install）
-d install                  # cargo fetch + npm install（E2E 用）+ playwright browsers
+d install                  # cargo fetch + lefthook install（git pre-commit の有効化）
 d dev                      # backend(3000) + frontend(5173, trunk serve) の dev サーバ起動
 d test                     # cargo test --workspace（backend 単体・HTTP 統合 + frontend 純粋関数）
-d e2e                      # Playwright E2E テスト（Rust 版を起動して検証）
+d e2e                      # E2E テスト（trunk build → cargo test -p meetup-e2e -- --ignored。ヘッドレス Chromium）
 d lint                     # cargo clippy -D warnings（d lint backend / frontend で対象を絞れる）
 d typecheck                # cargo check（frontend は wasm32 ターゲット）
 d review                   # fmt --check + clippy + test の総合確認
@@ -41,7 +41,7 @@ worktree で main と同時に起動する場合は `./scripts/docker-worktree.s
 
 コードベース・ドメイン知識の詳細地図は `docs/wiki/index.md`（LLM 保守の Wiki。運用ルールは `docs/wiki/SCHEMA.md`、操作は `/wiki` スキル）。
 
-Cargo workspace: `backend/`（axum API）, `frontend/`（Leptos SPA）。`e2e/` は Playwright (TypeScript) で、npm workspace はここだけ。
+Cargo workspace: `backend/`（axum API）, `frontend/`（Leptos SPA）, `e2e/`（ブラウザ E2E）。npm は使わない（Node は Docker イメージ内の Claude Code CLI 用のみ）。
 
 ### Backend
 
@@ -67,7 +67,11 @@ Leptos 0.8 (CSR) + Trunk + Tailwind CSS — WebAssembly SPA
 
 ### E2E
 
-Playwright tests covering full user flows (auth, community, member, event). Config starts both backend (`cargo run`) and frontend (`trunk serve`) via `webServer`.
+Rust 製のブラウザ E2E（`meetup-e2e`。chromiumoxide で Chrome DevTools Protocol を直接操作）。auth / community / member / event のユーザーフローを検証する。詳細は `e2e/CLAUDE.md`。
+
+- テストごとに backend を同一プロセスで起動する（インメモリ SQLite・空きポート・`target/e2e-dist` のビルド済み SPA を同一オリジンで配信）。`d dev` や他の worktree とポートを共有しない
+- `e2e/src/page.rs` が Playwright 風の自動待機付き Locator（`get_by_role` / `get_by_label` / `get_by_text`）を提供する
+- テストは `#[ignore]` 付きで、`cargo test --workspace` では実行されない（`d e2e` で実行）
 
 ## Core Patterns
 
@@ -90,9 +94,9 @@ Playwright tests covering full user flows (auth, community, member, event). Conf
 
 **AI が実装完了前に必ず実行すること: `d review`** — `cargo fmt --check` / `clippy -D warnings`（native + wasm32）/ `cargo test --workspace`。
 
-- **git pre-commit（lefthook）**: コミット時に cargo fmt / clippy / test が自動実行される（`lefthook.yml`）。`lefthook install` で一度だけ有効化する（worktree ごとに必要）
+- **git pre-commit（lefthook）**: コミット時に cargo fmt / clippy / test が自動実行される（`lefthook.yml`）。`d install` が `lefthook install` で有効化する（worktree ごとに必要）
 - **GitHub Actions CI**: push(main) / PR で `quality` ジョブ、PR のときのみ `e2e` ジョブ。`--no-verify` でローカルゲートを迂回しても CI が最後の砦になる → [CI・品質ゲート](docs/wiki/infra/ci-quality-gates.md)
-- **AI ハーネス hook（3 本 / `.claude/hooks/` / Claude Code 専用）**: dep-install-guard（`npm install` ガード）・secret-leak-detector（Bash 出力監視）・prettier-format（自動整形。e2e の TS 用）。lint / 型チェック / テストは lefthook と CI が担い、hook は**そこで代替できない AI 固有のリスクだけ**を見る。発火タイミングの一覧は [AI hooks](docs/wiki/infra/ai-hooks.md)
+- **AI ハーネス hook（1 本 / `.claude/hooks/` / Claude Code 専用）**: secret-leak-detector（Bash 出力監視）。lint / 型チェック / テストは lefthook と CI が担い、hook は**そこで代替できない AI 固有のリスクだけ**を見る。npm 撤去に伴い dep-install-guard（`npm install` ガード）と prettier-format（e2e の TS 整形）は役目を終えて削除した（→ [decision-log](docs/decision-logs/arch-20261127-e2e-in-rust.md)）。発火タイミングの一覧は [AI hooks](docs/wiki/infra/ai-hooks.md)
 
 品質ゲート本体は `lefthook.yml` の git pre-commit と CI で AI 非依存に管理する（AI hook が無効でもゲートは効く）。かつて Copilot CLI との併用対応（`.github/hooks/hooks.json`）と、lefthook / CI と重複する hook 2 本を持っていたが、Claude Code 専用に一本化して撤去した（→ [decision-log](docs/decision-logs/arch-20260915-claude-code-only-harness.md)）。
 
@@ -113,8 +117,8 @@ Playwright tests covering full user flows (auth, community, member, event). Conf
 - DB スキーマは `backend/src/infrastructure/schema.sql`。変更時は `CREATE TABLE IF NOT EXISTS` のため既存 DB には自動反映されない（開発 DB は削除して再作成する）
 - コミュニティ一覧は未ログイン時 PUBLIC のみ返す（旧 TS 実装は repository が visibility 条件を無視しており非公開も返していた。Rust 版で意図どおりに修正）
 - インメモリ SQLite は接続ごとに別 DB になるため、`:memory:` では接続プールを 1 本に固定している
-- `trunk` / `cargo` の初回ビルドは数分かかる。E2E の `webServer` タイムアウトは 600 秒
-- prettier は `e2e` の devDependencies で版を固定し、lefthook / hook は `npx --no-install prettier` で呼ぶ。既存のコンテナで pre-commit の prettier が失敗したら `d install` で入れ直す
+- `trunk` / `cargo` の初回ビルドは数分かかる
+- E2E のブラウザは自動検出（Docker は Debian の `chromium`、CI はランナーの Google Chrome）。`CHROME=<実行ファイル>` で差し替えられる。SPA は `d e2e` が毎回 `target/e2e-dist` にビルドし直す（`d dev` の `frontend/dist` とは別）
 
 ## Context Management
 

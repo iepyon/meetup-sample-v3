@@ -2,6 +2,15 @@
 
 追記専用。形式は [SCHEMA.md](SCHEMA.md) 参照。最新エントリの HEAD SHA が次回 `/wiki sync` の差分起点。
 
+## [2026-11-27] ingest | E2E を Playwright から Rust（chromiumoxide）へ移行し npm と hook 2 本を撤去 (HEAD: 52810be)
+
+- 出典: `docs/decision-logs/arch-20261127-e2e-in-rust.md` と、作業ツリー上の `e2e/`（`src/server.rs`・`src/lib.rs`・`CLAUDE.md`）・`scripts/docker-dev.sh`・`scripts/docker-worktree.sh`・`docker-compose.yml`・`Dockerfile`・`.github/workflows/ci.yml`・`.claude/settings.json`。HEAD の 52810be には未コミットのため、突合対象は作業ツリー
+- 更新: infra/ai-hooks.md（hook 3 本 → 1 本。dep-install-guard / prettier-format の撤去理由を追記、`verified` を 52810be に更新。旧値 5891e84 はリポジトリに存在しない）, infra/ci-quality-gates.md（e2e ジョブを trunk build + `cargo test -p meetup-e2e -- --ignored` に、③ の対象からの依存追加を削除）, infra/docker-dev.md（named volume 4 本 → 2 本、ベースイメージに chromium、`PLAYWRIGHT_BROWSERS_PATH` 削除、`d install` / `d e2e` の中身、sources を `e2e/src/*` に差し替え）, infra/worktree.md（volume から node_modules を削除、`e2e` コマンドと `install` の `lefthook install` を追記）, contexts/frontend-auth.md（Playwright E2E → Rust E2E）, index.md
+- `verified` は ai-hooks.md のみ更新。他のページは変更箇所だけを突合したため据え置き（既存値 5891e84 はリポジトリに存在しないので、次回 `/wiki sync` でページ全体を突合して更新する）
+- docker-dev.md の「d dev と d e2e の併用（Gotcha）」節（[2026-10-13] の ingest で追加）は、E2E が空きポート・インメモリ SQLite・専用 SPA 出力先で動くため問題自体が解消。節は併用可である旨の説明に書き換えた
+- wiki 外: `README.md`・`docs/docker-usage.md`・`docs/remaining-items.md`・`.claude/agents/{code-reviewer,test-analyzer}.md`・`tutorial/1day-tutorial.md`（hook の参照箇所のみ）も同じ事実に合わせて更新
+- 矛盾検出: なし（`docs/conventions/testing.md`・AGENTS.md は Rust E2E の記述に更新済みであることを確認）
+
 ## [2026-11-27] ingest | TypeScript から Rust（axum + sqlx + Leptos）への全面移行に伴う全ページの更新 (HEAD: 5891e84)
 
 - 出典: `docs/decision-logs/arch-20261127-rewrite-in-rust.md` と、作業ツリー上の Rust 実装（`backend/src/{auth,community,event,shared,infrastructure}`・`backend/tests/api.rs`・`frontend/src/`）。HEAD の 5891e84 には Rust 実装が**未コミット**のため、`verified` は 5891e84 にしているが突合対象は作業ツリー（コミット後に `/wiki sync` で再確認すること）
