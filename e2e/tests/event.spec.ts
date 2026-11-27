@@ -2,6 +2,14 @@ import { test, expect, type Page } from "@playwright/test";
 
 const uniqueSuffix = () => Date.now().toString();
 
+/** datetime-local 入力用のローカル時刻文字列（YYYY-MM-DDTHH:mm）。過去日時で 422 にならないよう未来日を作る */
+function futureLocalDateTime(daysAhead: number, hour: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(hour)}:00`;
+}
+
 async function registerAndLogin(page: Page, suffix: string) {
   await page.goto("/register");
   await page.getByLabel("名前").fill(`イベントユーザー${suffix}`);
@@ -55,8 +63,8 @@ test.describe("イベント", () => {
       await page
         .locator("textarea#event-description")
         .fill("TypeScriptでもくもくプログラミングする会");
-      await page.getByLabel("開始日時").fill("2026-12-01T19:00");
-      await page.getByLabel("終了日時").fill("2026-12-01T21:00");
+      await page.getByLabel("開始日時").fill(futureLocalDateTime(30, 19));
+      await page.getByLabel("終了日時").fill(futureLocalDateTime(30, 21));
       await page.locator("select#event-format").selectOption("ONLINE");
       await page.getByLabel("定員").clear();
       await page.getByLabel("定員").fill("50");
