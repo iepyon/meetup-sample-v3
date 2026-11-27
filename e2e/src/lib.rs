@@ -22,9 +22,6 @@ use tokio::task::JoinHandle;
 pub use page::{Locator, Page};
 pub use server::TestServer;
 
-/// E2E テストを既定で実行しない理由（`d e2e` が `--ignored` を付けて実行する）
-pub const REQUIRES_BROWSER: &str = "E2E: Chromium と trunk build 済みの SPA が必要（d e2e で実行）";
-
 static PROFILE_SEQ: AtomicU64 = AtomicU64::new(0);
 
 /// 1 テスト分のサーバ + ブラウザ + ページ。`Deref` で [`Page`] の操作をそのまま呼べる

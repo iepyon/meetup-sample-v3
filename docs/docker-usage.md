@@ -89,7 +89,7 @@ d bash -c "cd frontend && trunk build --release"             # frontend の本�
 ```bash
 # テスト
 cargo test --workspace
-cargo test -p meetup-backend           # backend のみ（単体 + tests/ の統合テスト）
+cargo test -p meetup-backend           # backend のみ（単体 + tests/api.rs）
 cargo test -p meetup-frontend          # frontend の純粋関数テスト
 
 # Lint（警告=エラー）

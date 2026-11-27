@@ -8,7 +8,6 @@ sources:
   - backend/src/infrastructure/schema.sql
   - backend/tests/common/mod.rs
   - backend/tests/api.rs
-  - backend/tests/api_members.rs
   - backend/tests/system.rs
   - backend/tests/security.rs
   - docs/decision-logs/arch-20261127-rewrite-in-rust.md
@@ -34,7 +33,7 @@ SQLite への接続（`SqlitePool`）とスキーマ適用を担う。旧 Prisma
 
 ## テスト（backend/tests/）
 
-- HTTP 統合テスト 65 件（2026-11-27 時点）を 4 ファイルに分割: `api.rs`（認証・コミュニティ・イベント）/ `api_members.rs`（メンバー）/ `system.rs`（404・405・413・レート制限・キャッシュ・OpenAPI 等の横断的な挙動）/ `security.rs`（セキュリティヘッダ・415・SPA 配信・権限の境界）。共通ヘルパー（`app` / `app_with_pool` / `call` / `register` / `create_community` / `event_body`）は `common/mod.rs`。テストは `meetup-test-runner`（libtest-mimic、`harness = false`）の `describe` / `test` で書き、名前は `認証 > …` と文字列のまま表示される
+- HTTP 統合テスト 65 件（2026-11-27 時点）を 3 ファイルに分割: `api.rs`（認証・コミュニティ・メンバー・イベント）/ `system.rs`（404・405・413・レート制限・キャッシュ・OpenAPI 等の横断的な挙動）/ `security.rs`（セキュリティヘッダ・415・SPA 配信・権限の境界）。共通ヘルパー（`app` / `app_with_pool` / `call` / `register` / `create_community` / `event_body`）は `common/mod.rs`
 - 各テストが `connect("sqlite::memory:")` で独立したインメモリ DB を作り、`create_app(AppState::new(pool, SECRET), false)` を `tower::ServiceExt::oneshot` で直接呼ぶ（ポートは開かない）
 - 単体テストは各モジュール内の `#[cfg(test)] mod tests`（`community/models.rs` / `event/models.rs` / `shared/validation.rs` / `shared/middleware.rs` / `shared/auth.rs` / `app.rs`）
 

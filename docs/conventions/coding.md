@@ -3,7 +3,7 @@
 ## ファイル・命名
 
 - ファイル名は `snake_case.rs`。コンテキストごとに役割別モジュールに分ける: `controller.rs` / `usecases.rs` / `models.rs` / `repository.rs` / `errors.rs`
-- 関数は最大 50 行、ファイルは最大 400 行（ハード上限 800 行）。`tests/` 配下のテスト登録関数（`fn 名前() -> Node`）は関数の行数制限の対象外
+- 関数は最大 50 行、ファイルは最大 400 行（ハード上限 800 行）
 - `unwrap()` / `expect()` / `panic!` は本番コードで使わない（テストと起動時の fail-fast を除く）。`unsafe` は原則禁止
 - `cargo fmt --all` と `cargo clippy --workspace --all-targets -- -D warnings` を常に通す（frontend は `--target wasm32-unknown-unknown` でも）
 

@@ -41,7 +41,7 @@ worktree で main と同時に起動する場合は `./scripts/docker-worktree.s
 
 コードベース・ドメイン知識の詳細地図は `docs/wiki/index.md`（LLM 保守の Wiki。運用ルールは `docs/wiki/SCHEMA.md`、操作は `/wiki` スキル）。
 
-Cargo workspace: `backend/`（axum API）, `frontend/`（Leptos SPA）, `e2e/`（ブラウザ E2E）, `test-runner/`（`tests/` 配下の統合テスト・E2E 用の `describe` / `test`。libtest-mimic でテスト名を文字列のまま表示する）, `test-macros/`（`src` 内の単体テスト用の `describe!` / `test!` マクロ）。npm は使わない（Node は Docker イメージ内の Claude Code CLI 用のみ）。
+Cargo workspace: `backend/`（axum API）, `frontend/`（Leptos SPA）, `e2e/`（ブラウザ E2E）, `test-macros/`（テスト名を文字列で書く `describe!` / `test!`。全テストで使う）。npm は使わない（Node は Docker イメージ内の Claude Code CLI 用のみ）。
 
 ### Backend
 
@@ -53,7 +53,7 @@ DDD bounded contexts。各コンテキストは `controller.rs` -> `usecases.rs`
 - `backend/src/shared/` — 共通基盤（エラー型 `ApiError`、検証 `validation.rs`、JWT `auth.rs`、レート制限/キャッシュ `middleware.rs`、Event Bus、OpenAPI `openapi.rs`）
 - `backend/src/infrastructure/` — SQLite 接続と `schema.sql`（起動時に冪等適用）
 - `backend/src/app.rs` — Composition Root（`AppState` とルーティング）
-- `backend/tests/` — HTTP 統合テスト（インメモリ SQLite）。`api.rs`（認証・コミュニティ・イベント）/ `api_members.rs`（メンバー）/ `system.rs`（横断的な挙動: 404・405・レート制限・キャッシュ等）/ `security.rs`（セキュリティヘッダ・415・SPA 配信等）、共通ヘルパーは `common/mod.rs`。どれも `meetup-test-runner`（`harness = false`）で書く
+- `backend/tests/` — HTTP 統合テスト（インメモリ SQLite）。`api.rs`（認証・コミュニティ・メンバー・イベント）/ `system.rs`（横断的な挙動: 404・405・レート制限・キャッシュ等）/ `security.rs`（セキュリティヘッダ・415・SPA 配信等）、共通ヘルパーは `common/mod.rs`
 
 ### Frontend
 
@@ -71,7 +71,7 @@ Rust 製のブラウザ E2E（`meetup-e2e`。chromiumoxide で Chrome DevTools P
 
 - テストごとに backend を同一プロセスで起動する（インメモリ SQLite・空きポート・`target/e2e-dist` のビルド済み SPA を同一オリジンで配信）。`d dev` や他の worktree とポートを共有しない
 - `e2e/src/page.rs` が Playwright 風の自動待機付き Locator（`get_by_role` / `get_by_label` / `get_by_text`）を提供する
-- テストは ignore 指定（`.ignore(REQUIRES_BROWSER)`）付きで、`cargo test --workspace` では実行されない（`d e2e` が `--ignored` で実行）
+- テストは `#[ignore]` 付きで、`cargo test --workspace` では実行されない（`d e2e` で実行）
 
 ## Core Patterns
 

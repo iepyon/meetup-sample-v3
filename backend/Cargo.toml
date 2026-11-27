@@ -27,22 +27,4 @@ bcrypt = "0.17"
 
 [dev-dependencies]
 meetup-test-macros = { path = "../test-macros" }
-meetup-test-runner = { path = "../test-runner" }
 http-body-util = "0.1"
-
-# 統合テストは meetup-test-runner（libtest-mimic）で実行する（テスト名を文字列のまま表示するため）
-[[test]]
-name = "api"
-harness = false
-
-[[test]]
-name = "api_members"
-harness = false
-
-[[test]]
-name = "system"
-harness = false
-
-[[test]]
-name = "security"
-harness = false

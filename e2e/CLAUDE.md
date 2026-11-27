@@ -14,7 +14,7 @@ d e2e --test auth          # 追加引数は cargo test の `--` より前に渡
 cargo test -p meetup-e2e -- --ignored
 ```
 
-- テストは全件 ignore 指定（`.ignore(REQUIRES_BROWSER)`）付き。`cargo test --workspace`（`d test` / pre-commit / CI quality）では実行されず、ブラウザ無しで通る。clippy / fmt の対象には含まれる
+- テストは全件 `#[ignore]` 付き。`cargo test --workspace`（`d test` / pre-commit / CI quality）では実行されず、ブラウザ無しで通る。clippy / fmt の対象には含まれる
 - ブラウザは自動検出（`chromium` / `google-chrome` など）。`CHROME=<実行ファイル>` で差し替えられる。Docker イメージには Debian の `chromium` を導入済み、CI はランナーの Google Chrome を使う
 - SPA の場所は既定で `target/e2e-dist`。`E2E_FRONTEND_DIST` で上書きできる。見つからなければ panic で案内する
 
@@ -55,8 +55,8 @@ cargo test -p meetup-e2e -- --ignored
 
 ## テスト作成時の注意
 
-- テストは `meetup-test-runner` の `describe` / `test` で書き、名前は日本語の文字列にする（ファイル = 機能、入れ子の `describe` = 観点。旧 Playwright の describe 構造と同じ）。表示も `認証 > ログイン > …` と書いたとおりになる。各テストは `E2e::start()` から始め、最後に `page.close().await` を呼ぶ
-- `main` で最上位の `describe` に `.multi_thread().ignore(REQUIRES_BROWSER)` を付ける（配下の全テストに効く）。テストファイルを足したら `e2e/Cargo.toml` に `[[test]]` と `harness = false` を追加する
+- テストは `describe!` / `test!`（`meetup-test-macros`）で書き、名前は日本語の文字列にする（ファイル = 機能、入れ子の `describe!` = 観点。旧 Playwright の describe 構造と同じ）。各テストは `E2e::start()` から始め、最後に `page.close().await` を呼ぶ
+- `test!` の直前に `#[tokio::test(flavor = "multi_thread")]` と `#[ignore = "E2E: ..."]` をそろえて書く
 - 否定のアサーション（`expect_hidden` / `expect_count(0)`）は即座に通り得る。先に肯定の状態（エラー表示・ボタンの切り替わりなど）を待ってから書く
 - メールアドレスは英数字の接頭辞 + `unique_suffix()` で作る（日本語を入れると入力検証で弾かれる）
 - 複数ユーザーが関わるテストは、登録 → 操作 → ログアウト → 別ユーザー登録 → 操作の流れ。UI から辿れない前提（非公開コミュニティへの申請など）は `fetch_json` で API を直接呼ぶ
