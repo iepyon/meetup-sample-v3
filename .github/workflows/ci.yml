@@ -1,7 +1,6 @@
 name: CI
 
-# private リポジトリのため GitHub Actions は月 2,000 分の無料枠内で運用する。
-# 分数節約のため: docs のみの変更は skip / 古い実行は concurrency で自動キャンセル /
+# public リポジトリ（GitHub Actions の標準ランナーは無料）。ただし実行時間とランナーの待ちを抑えるため: docs のみの変更は skip / 古い実行は concurrency で自動キャンセル /
 # 重い E2E は pull_request のときだけ実行する。
 on:
   push:

@@ -48,8 +48,8 @@
 
 ## 4. 運用・環境
 
-- [ ] `git config user.name` が `“Eiji`（先頭が全角引用符）。`git config --global user.name "Eiji"` のあと `git commit --amend --reset-author`
-- [ ] リモート未設定・push 未実施
+- [x] `git config user.name` が `“Eiji`（先頭が全角引用符）。`git config --global user.name "Eiji"` のあと `git commit --amend --reset-author` — 2026-11-27 に修正し、push 前に全コミットの作者を付け替え
+- [x] リモート未設定・push 未実施 — 2026-11-27 に https://github.com/iepyon/meetup-sample-v3 （public）を作成して push
 - [ ] 旧 Prisma DB は読めない（データ移行手順なし）。必要なら移行スクリプトを作る
 - [ ] `backend/prisma/seed.ts` を削除済み。開発用 seed が必要なら Rust 側に用意する
 
